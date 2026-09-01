@@ -201,8 +201,76 @@ S3_ACCESS_KEY_ID=minioadmin
 S3_SECRET_ACCESS_KEY=<minio 密码>
 STORAGE_FIXED_QUOTA=1073741824
 TRANSLATION_FIXED_QUOTA=50000
-SELF_HOSTED=true                             # 自托管免付费墙
+SELF_HOSTED=true                             # 解锁高级功能（配额仍执行，见 §6.3.2）
 ```
+
+### 6.3.1 Stripe 测试密钥（/user 页本地必配，缺失即崩溃）
+
+`/user`（订阅/套餐）页会调用 `/api/stripe/plans`，而 `src/libs/payment/stripe/server.ts:11-17` 在 dev 模式读取
+`STRIPE_SECRET_KEY_DEV`——未设置时 `new Stripe(undefined!)` 抛错：HTTP 500
+`Neither apiKey nor config.authenticator provided`，浏览器端再跟一个
+`Failed to load Stripe.js`（`client.ts:15-18` 的 pk_test 与前端的 secret 不匹配）。
+`SELF_HOSTED=true` 只管配额，**不**跳过这一页面的 Stripe 初始化。
+
+在 Stripe 后台注册免费账号 → 开发者工具 → API keys 拿**测试模式**密钥后追加到 `.env.local`：
+
+```bash
+cat >> apps/readest-app/.env.local <<EOF
+STRIPE_SECRET_KEY_DEV=sk_test_xxx
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY_DEV_BASE64=$(echo -n "pk_test_xxx" | base64 -w0)
+EOF
+```
+
+- 两把 key 必须**同属一个 Stripe 测试账号**（否则套餐列表能拿到、checkout 会串号）
+- 你的测试账号没有 Readest 产品时，`/api/stripe/plans` 返回空数组，页面正常渲染、不报错——这是预期行为
+- 调试付费流程需参照 `src/app/api/stripe/plans/route.ts` 的 `metadata.plan`/`storageGB` 结构自建测试产品
+- `Failed to load Stripe.js` 若仍存在：stripe-js 需浏览器能访问 `js.stripe.com`，网络受限则列表页不受影响，仅卡片结账不可用
+- 改完必须重启 `pnpm dev-web`；`just env-local` 生成的模板里有两行注释占位，取消注释填入即可
+
+### 6.3.2 自托管与配额（SELF_HOSTED / 固定配额）
+
+自托管下分两套机制，**不要混为一谈**：
+
+**① SELF_HOSTED=true → 只解锁"高级功能闸门"，不碰配额**
+
+统一闸门 `isCustomizationAllowed`（`src/utils/access.ts:139-140`）：
+
+```ts
+isCustomizationAllowed = isSelfHosted() || customizationPurchased || PREMIUM_PLANS.includes(plan)
+```
+
+置 true 后以下功能**不再看 JWT 套餐、登录与否都解锁**（`isSelfHosted():
+access.ts:129-133`）：
+
+- 字体/主题等完整自定义（Full Customization）
+- 第三方云同步 WebDAV / Google Drive / S3（`isCloudSyncInPlan → isCustomizationAllowed`）
+- TTS 离线音频缓存（`isTTSCacheInPlan` 同链路）
+- Send-to-Readest 邮件收件箱
+
+**② 配额始终强制执行，但数额可配置（自托管者的唯一收费"开关"）**
+
+存储/翻译上限不随 SELF_HOSTED 抬高，看 `access.ts:144-169`：
+
+```ts
+const fixedQuota = runtimeConfig?.storageFixedQuota ?? process.env['STORAGE_FIXED_QUOTA'];
+const quota = fixedQuota || DEFAULT_STORAGE_QUOTA[plan];  // plan 来自登录账号 JWT
+```
+
+| 环境变量（可放 `docker/.env` + `apps/readest-app/.env.local`） | 作用 | 缺省（设 0/删除）时的兜底 |
+|---|---|---|
+| `STORAGE_FIXED_QUOTA` | 所有套餐统一的云存储上限（字节） | `DEFAULT_STORAGE_QUOTA[plan]`：free 500MB / plus 5GB / pro 20GB |
+| `TRANSLATION_FIXED_QUOTA` | 每日翻译字符数上限 | `DEFAULT_DAILY_TRANSLATION_QUOTA[plan]`：free 10K / plus 100K / pro 500K |
+
+- **执行是活的**：`/api/storage/upload.ts` 会在 `usage + fileSize > quota + 10MB grace` 时 403；
+  `/api/storage/stats.ts` 与 UI 进度条照常统计
+- **不要设 0/删除**：0 走 `||` 回落到"按 JWT 套餐"档位（free 只有 500MB/10K，反而更严）
+- **两边通道保持一致**：服务端 `pages/api` 读 `process.env`，浏览器读 `/runtime-config.js`
+  （服务端 env → runtimeConfig）——`docker/.env` 与 `.env.local` 各写一份且值一致，
+  否则 UI 显示与实际限额不符
+- 默认模板值（compose/docker/just 生成）：1GB 存储 / 50K 翻译——属于"我运营我定价"
+
+**③ 注意**：`/user` 订阅页的 Stripe 初始化**不走上述闸门**（`api/stripe/plans/route.ts:29`），
+`SELF_HOSTED` 不解它——本地仍需要测试密钥（§6.3.1）或干脆不进该页。
 
 ### 6.4 常用操作
 
@@ -316,3 +384,4 @@ backend-reset:
 7. **`.env` 两套**：`docker/.env`（compose）与 `apps/readest-app/.env*`（Next）完全独立，互相不读。
 8. **跨域**：middleware 已允许 `localhost:3000/3001`（middleware.ts:3-10）；kong 自带 cors 插件。
 9. **vendors**：`public/vendor/` 缺失时 PDF/简繁转换功能报错，跑 `pnpm --filter @readest/readest-app setup-vendors`。
+10. **`/user` 页 500（`Neither apiKey nor config.authenticator provided`）**：dev 模式缺 `STRIPE_SECRET_KEY_DEV`（只配了 Supabase 无关）；解法见 §6.3.1。特别注意它与 `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY_DEV_BASE64` 须同账号。

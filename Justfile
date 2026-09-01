@@ -68,6 +68,10 @@ env-local:
     STORAGE_FIXED_QUOTA=1073741824
     TRANSLATION_FIXED_QUOTA=50000
     SELF_HOSTED=true
+    # Stripe 测试密钥（/user 页与 /api/stripe/plans 依赖；去 Stripe 后台拿测试 key，
+    # 取消注释并填入同账号的 sk_test/pk_test。缺失时 /user 页 500）
+    # STRIPE_SECRET_KEY_DEV=sk_test_123
+    # NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY_DEV_BASE64=<echo -n "pk_test_123" | base64 -w0 的结果>
     EOF
         echo "apps/readest-app/.env.local 已生成"
     fi
