@@ -211,6 +211,40 @@ const migrations: Record<SchemaType, MigrationEntry[]> = {
       `,
     },
   ],
+  // Explanations cache for the explainer feature: one row per
+  // (book_hash, text_hash, native_lang) — the same passage in the same
+  // order of the learner's mother tongue hits the same row, so
+  // "regenerate" is an in-place overwrite that swaps the content
+  // (payload/prompt_version/cfi/updated_at) and keeps the row's id and
+  // created_at from first creation. book_title is snapshotted so the
+  // library page still shows a title after the book is removed; deleting
+  // books does NOT cascade to these rows (v0, explicit).
+  // created_at / updated_at are epoch millis.
+  explainer: [
+    {
+      name: '2026090301_explainer',
+      sql: `
+        CREATE TABLE IF NOT EXISTS explanations (
+          id TEXT PRIMARY KEY,
+          book_hash TEXT NOT NULL,
+          book_title TEXT NOT NULL,
+          text TEXT NOT NULL,
+          text_hash TEXT NOT NULL,
+          source_lang TEXT NOT NULL,
+          native_lang TEXT NOT NULL,
+          cfi TEXT,
+          payload TEXT NOT NULL,
+          prompt_version INTEGER NOT NULL,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL,
+          UNIQUE(book_hash, text_hash, native_lang)
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_explanations_book_created
+        ON explanations (book_hash, created_at DESC);
+      `,
+    },
+  ],
   reedy: [
     {
       name: '2026052601_reedy_init',
