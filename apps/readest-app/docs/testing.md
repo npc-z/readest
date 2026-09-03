@@ -15,6 +15,8 @@ pnpm test -- --watch                            # Watch mode
 ```
 
 - **Config:** `vitest.config.mts`
+- **Workers:** adaptive default based on CPU count, current load, and free memory
+  (override with `VITEST_MAX_WORKERS=<n> pnpm test`, or `--maxWorkers=<n>`).
 - **Pattern:** `src/**/*.test.ts` (excludes `*.browser.test.ts` and `*.tauri.test.ts`)
 - **Environment:** jsdom
 - **Use for:** Pure logic, utilities, services that don't need real browser APIs or Tauri IPC.

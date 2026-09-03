@@ -1,7 +1,45 @@
+import os from 'node:os';
 import path from 'path';
 import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 import tsconfigPaths from 'vite-tsconfig-paths';
+
+const GiB = 1024 ** 3;
+
+// Pick a worker count that adapts to the machine instead of always taking
+// ~half the CPUs (vitest's default). Explicit CLI flags like --maxWorkers
+// still win over this value — it only sets the default.
+// Override with VITEST_MAX_WORKERS=<n> to force a specific count.
+function resolveMaxWorkers(): number {
+  const forced = Number.parseInt(process.env.VITEST_MAX_WORKERS ?? '', 10);
+  if (Number.isInteger(forced) && forced >= 1) {
+    return forced;
+  }
+  const cpus =
+    typeof os.availableParallelism === 'function'
+      ? os.availableParallelism()
+      : os.cpus().length;
+  const total = Math.max(1, cpus);
+  // Baseline mirrors vitest's own heuristic: ~half the CPUs.
+  const base = Math.max(1, Math.floor(total / 2));
+  // Leave headroom for whatever else is running right now.
+  const [load1] = os.loadavg();
+  const headroom = Math.max(1, total - Math.ceil(load1));
+  let workers = Math.min(base, headroom);
+  // jsdom workers are memory-hungry; back off when RAM is tight.
+  if (os.freemem() < 2 * GiB) {
+    workers = Math.max(1, Math.ceil(workers / 2));
+  }
+  return workers;
+}
+
+const maxWorkers = resolveMaxWorkers();
+console.log(
+  `[vitest] maxWorkers=${maxWorkers} ` +
+    `(cpus=${os.availableParallelism?.() ?? os.cpus().length}, ` +
+    `load1=${os.loadavg()[0].toFixed(2)}, ` +
+    `freemem=${(os.freemem() / GiB).toFixed(1)}GiB)`,
+);
 
 export default defineConfig({
   plugins: [tsconfigPaths(), react()],
@@ -22,6 +60,9 @@ export default defineConfig({
   },
   test: {
     environment: 'jsdom',
+    // Adaptive default, see resolveMaxWorkers() above.
+    // Explicit --maxWorkers CLI flags (e.g. test:pr:web:unit) still override this.
+    maxWorkers,
     silent: 'passed-only',
     setupFiles: ['./vitest.setup.ts'],
     exclude: [
