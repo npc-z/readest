@@ -35,6 +35,11 @@ export class OllamaProvider implements AIProvider {
   }
 
   getModel(): LanguageModel {
+    // Ollama's `think` is a model-creation chat setting, read here rather than
+    // from `providerOptions` (the vendored schema strips it). The explainer v1
+    // deliberately does NOT send it: top-level `think: true` is rejected with
+    // HTTP 400 by non-reasoning models (e.g. the default llama3.2). Re-introduce
+    // `think` via getModel once a model-capability probe can enable it safely.
     return this.ollama(this.settings.ollamaModel || 'llama3.2');
   }
 

@@ -14,6 +14,13 @@ export interface ExplanationEntry {
   promptVersion: number;
   createdAt: number;
   updatedAt: number;
+  /**
+   * Transient call flag set by `ExplainerService.getOrGenerate` when the
+   * passage was truncated to the input unit limit before generation. Not
+   * persisted — a cache hit recomputes it from the current request — so the
+   * UI can toast "only the first part was explained" without re-reading it.
+   */
+  truncated?: boolean;
 }
 
 export interface ListOptions {
