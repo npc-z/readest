@@ -124,6 +124,15 @@ describe('explainerStore', () => {
     expect(useExplainerStore.getState().isExplainerVisible).toBe(false);
   });
 
+  test('clearRequest clears the request and current item so the panel falls idle', () => {
+    useExplainerStore.getState().openExplainer(request());
+    expect(useExplainerStore.getState().request).toEqual(request());
+
+    useExplainerStore.getState().clearRequest();
+    expect(useExplainerStore.getState().request).toBeNull();
+    expect(useExplainerStore.getState().currentItemKey).toBeNull();
+  });
+
   test('pin and width are independent of the Notebook', () => {
     expect(useExplainerStore.getState().isExplainerPinned).toBe(false);
     useExplainerStore.getState().toggleExplainerPin();

@@ -17,7 +17,7 @@ describe('annotationToolbar helpers', () => {
     expect(ALL_ANNOTATION_TOOL_TYPES).toEqual(annotationToolButtons.map((b) => b.type));
   });
 
-  test('default toolbar is the eight non-share tools in canonical order', () => {
+  test('default toolbar is the non-share tools in canonical order, with explainer after translate', () => {
     expect(DEFAULT_ANNOTATION_TOOLBAR_ITEMS).toEqual([
       'copy',
       'highlight',
@@ -25,6 +25,7 @@ describe('annotationToolbar helpers', () => {
       'search',
       'dictionary',
       'translate',
+      'explainer',
       'tts',
       'proofread',
     ]);
@@ -38,6 +39,16 @@ describe('annotationToolbar helpers', () => {
     expect(getAvailableToolTypes(DEFAULT_ANNOTATION_TOOLBAR_ITEMS, true)).toContain('copylink');
     expect(getToolbarToolTypes([...DEFAULT_ANNOTATION_TOOLBAR_ITEMS, 'copylink'], true)).toContain(
       'copylink',
+    );
+  });
+
+  test('explainer is a default-on quickAction after translate', () => {
+    const button = annotationToolButtons.find((b) => b.type === 'explainer');
+    expect(button?.label).toBe('Explain');
+    expect(button?.quickAction).toBe(true);
+    expect(DEFAULT_ANNOTATION_TOOLBAR_ITEMS).toContain('explainer');
+    expect(DEFAULT_ANNOTATION_TOOLBAR_ITEMS.indexOf('explainer')).toBe(
+      DEFAULT_ANNOTATION_TOOLBAR_ITEMS.indexOf('translate') + 1,
     );
   });
 
@@ -63,6 +74,7 @@ describe('annotationToolbar helpers', () => {
       'search',
       'dictionary',
       'translate',
+      'explainer',
       'tts',
       'proofread',
       'share',

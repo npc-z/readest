@@ -21,7 +21,15 @@ export const EXPLAINER_INPUT_LIMITS = {
 /** Generation parameters shared by the web route and native direct path. */
 export const EXPLAINER_GENERATION_PARAMS = {
   temperature: 0.2,
-  maxOutputTokens: 4096,
+  /**
+   * Output budget for reasoning-enabled calls (thinking ≠ 'off'): a reasoning
+   * chain can consume a large share of `max_tokens` before the plain answer, so
+   * it needs 10× the ceiling (verified against DeepSeek reasoning models).
+   */
+  maxOutputTokens: 40_960,
+  /** Budget for plain completions (thinking === 'off'): an explanation is a
+   *  small completion, so keep the cost/time ceiling tight. */
+  maxOutputTokensOff: 4_096,
   /** SDK retries: network layer only. */
   maxRetries: 2,
 } as const;
@@ -31,6 +39,9 @@ export type ExplainerThinkingLevel = (typeof EXPLAINER_THINKING_LEVELS)[number];
 
 export const DEFAULT_EXPLAINER_THINKING: ExplainerThinkingLevel = 'off';
 
+/** Default OpenAI-compatible base URL (OpenRouter default from the AI settings). */
+export const EXPLAINER_DEFAULT_BASE_URL = 'https://openrouter.ai/api/v1';
+
 export const EXPLAINER_TIMEOUTS = {
   defaultMs: 120_000,
   highThinkingMs: 240_000,
@@ -39,6 +50,12 @@ export const EXPLAINER_TIMEOUTS = {
 /** Timeout per the §7 parameter table: 'high' thinking gets the longer budget. */
 export const explainerTimeoutMs = (thinking: ExplainerThinkingLevel): number =>
   thinking === 'high' ? EXPLAINER_TIMEOUTS.highThinkingMs : EXPLAINER_TIMEOUTS.defaultMs;
+
+/** Output budget is thinking-aware: only reasoning chains need the large cap. */
+export const explainerMaxOutputTokens = (thinking: ExplainerThinkingLevel): number =>
+  thinking === 'off'
+    ? EXPLAINER_GENERATION_PARAMS.maxOutputTokensOff
+    : EXPLAINER_GENERATION_PARAMS.maxOutputTokens;
 
 /**
  * Error codes the service layer may produce. Copy/messages belong to the UI
@@ -50,6 +67,15 @@ export const EXPLAINER_ERROR_CODES = [
   'provider-error',
   'no-object-salvaged',
   'invalid-input',
+  'rate-limited',
 ] as const;
 
 export type ExplainerErrorCode = (typeof EXPLAINER_ERROR_CODES)[number];
+
+/**
+ * Cache key format `(bookHash, textHash, nativeLang)` shared by the service
+ * layer, the panel, and the in-memory test stores so the delimiter can never
+ * drift in one place.
+ */
+export const explainerCacheKey = (bookHash: string, textHash: string, nativeLang: string): string =>
+  `${bookHash}:${textHash}:${nativeLang}`;

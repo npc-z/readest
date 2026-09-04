@@ -54,6 +54,8 @@ interface ExplainerState {
 
   openExplainer: (request: ExplainerOpenRequest) => void;
   closeExplainer: () => void;
+  /** Clear the opened request so the panel falls back to its idle empty state. */
+  clearRequest: () => void;
   toggleExplainer: () => void;
   setExplainerVisible: (visible: boolean) => void;
   setExplainerPin: (pinned: boolean) => void;
@@ -92,8 +94,14 @@ const capExpandedByItem = (
  * explainer; the two slots coexist instead.
  */
 const closeFloatingNotebook = (): void => {
-  const notebook = useNotebookStore.getState();
-  if (!notebook.isNotebookPinned) notebook.setNotebookVisible(false);
+  // `useNotebookStore` is a static import of the zustand store, which always has
+  // getState/setNotebookVisible in the app. The optional chaining exists purely
+  // so component tests that mock the notebook store as a bare hook (without the
+  // zustand methods) can still import this module without throwing; production
+  // never hits the `?.` branch.
+  const notebook = useNotebookStore.getState?.();
+  if (!notebook || notebook.isNotebookPinned) return;
+  notebook.setNotebookVisible?.(false);
 };
 
 /**
@@ -129,6 +137,7 @@ export const useExplainerStore = create<ExplainerState>((set, get) => ({
   },
 
   closeExplainer: () => set({ isExplainerVisible: false }),
+  clearRequest: () => set({ request: null, currentItemKey: null }),
   toggleExplainer: () => {
     // Toggling the panel back open simply reveals the last session entry — it
     // deliberately does NOT reset request/currentItemKey. That is reserved for
@@ -183,7 +192,9 @@ export const useExplainerStore = create<ExplainerState>((set, get) => ({
 // share the slot: an unpinned Notebook closing the explainer, and vice versa.
 // A pinned (docked) panel on either side is left alone so it can't be silently
 // closed and later remounted over the other.
-useNotebookStore.subscribe((state) => {
+// Same defensive rationale as `closeFloatingNotebook`: the real zustand store
+// always has `subscribe`; the `?.` only tolerates the bare-hook mock in tests.
+useNotebookStore.subscribe?.((state) => {
   if (
     state.isNotebookVisible &&
     !state.isNotebookPinned &&

@@ -6,10 +6,9 @@
 
 **Status:** ready-for-agent
 
-- [ ] 注解工具栏：新增 `explainer` 工具（label "Explain"、图标、quickAction），插在 translate 之后并默认开启；同步工具全集/默认集数组（编辑器型新增按既有同步单测先例）；构建器接入处理函数
-- [ ] 处理函数照 translate 范式：关闭选择弹层、抑制原生手柄、保留选择 → 带 text/cfi/bookHash 打开面板（bookHash 派生于当前书）
-- [ ] 面板壳：右侧浮槽与 Notebook 同槽互斥（z 分层/覆盖层/pin/宽度沿用既有面板机制，不新增分层）；顶栏切换按钮（与 Notebook 按钮同排）；移动端全宽 sheet；未配置 AI → 面板内联"去设置"空态（无入口 toast）
-- [ ] 生成闭环：选中即生成（骨架 → 级联填充）；重选同段即时命中；生成失败面板内联错误 + 重试/重新生成；空/纯空白选择不发请求；超过 500 单位截断 toast
-- [ ] 当前条目操作：重新生成（显式覆盖同一缓存键）、删除（确认）
-- [ ] 测试：工具栏同步断言、处理函数与 store 接线、面板渲染（loading/error/not-configured 三态）；本轮以桌面 + 移动端人肉冒烟验证闭环（不入 CI）
-
+- [x] 注解工具栏：新增 `explainer` 工具（label "Explain"、`LuGraduationCap`、quickAction），插在 translate 之后并默认开启；`AnnotationToolType`/`ALL`/`DEFAULT` 全同步；构建器接入 `handleExplainer`
+- [x] 处理函数照 translate 范式：关选择弹层 + `suppressNativeSelectionHandles()` + 保留选择 → `explainerStore.openExplainer({text, cfi, bookHash, bookTitle, sourceLang(书语言||'auto'), nativeLang(UI 快照)})`（bookHash 派生自当前书）
+- [x] 面板壳：`ExplainerPanel` 右侧浮槽，与 Notebook 同槽互斥（复用 `Overlay` + `z-[45]/z-20` + pin/关闭）；`ExplainerToggler` 顶栏（与 Notebook 同排）；移动端全宽；未配置 AI → 内联"去设置"空态（`onOpenSettings` 打开 AI 设置，无入口 toast）
+- [x] 生成闭环：选中即生成（骨架 → 级联填充）；重选同段即时命中（服务缓存）；失败内联错误 + 重试/重新生成；空白选择由服务 invalid-input 拦截（不调 AI）；超过 500 单位由 `entry.truncated` → `eventDispatcher('toast')`
+- [x] 当前条目操作：重新生成（`service.regenerate` 强制越过缓存、覆盖同键）、删除（确认，`deleteExplanation`）
+- [x] 测试：工具栏同步断言（order/label/quickAction）、store 接线（`openExplainer`→panel→generator）、面板渲染（loading/error/not-configured 三态 + regenerate/delete）；桌面+移动端人肉冒烟（不入 CI）
