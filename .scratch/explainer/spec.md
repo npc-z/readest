@@ -71,7 +71,7 @@ Status: ready-for-agent
   ```
   演进规则：只增不改；破坏性变更经 `promptVersion`+统一重新生成。
 - **缓存与存储**：键 `(bookHash, normalizedTextHash, nativeLang)`；**text 存展示版（含换行），textHash 存归一化结果**（strip HTML/实体→NFKC→lowercase→标点→空白折叠→sha256）；CJK 段落按字符计数，超 500 单位截断+toast。库：独立 `explainer` schema 迁移组；表 `explanations`：id(uuid)/book_hash/book_title(快照)/text/text_hash/source_lang/native_lang/cfi(可空)/payload(JSON)/prompt_version/created_at(ms)/updated_at(ms)，`UNIQUE(book_hash,text_hash,native_lang)` 即 upsert 覆盖语义；索引 `(book_hash, created_at DESC)`。
-- **Prompt**：v1 定稿全文在 `prompt-framework.md` §7（`promptVersion=1`，英文 system；`<INPUT_TEXT>` 分隔 + INVALID_INPUT/注入回避；分节 IDENTITY/TARGET READER/INPUT/TASK(四层)/CONSTRAINTS/OUTPUT FORMAT；仅 TARGET READER 句为水平敏感、可参数化）。**不在本 spec 复述全文，实现以 §7 为准**。
+- **Prompt**：v1 定稿全文在 `prompt-framework.md` §7（`promptVersion=1`，英文 system；`<INPUT_TEXT>` 分隔 + 注入回避——含字面 `</INPUT_TEXT>` 的输入由服务预检拦截为 invalid-input，不入模型；分节 IDENTITY/TARGET READER/INPUT/TASK(四层)/CONSTRAINTS/OUTPUT FORMAT；仅 TARGET READER 句为水平敏感、可参数化）。**不在本 spec 复述全文，实现以 §7 为准**。
 - **面板与交互**：独立 `explainerStore`（镜像 notebookStore 子集）+ 右浮面板；与 Notebook 同槽互斥；视图切换（当前讲解 / 本书历史）；级联四级阶梯（Simple 默认展开，notes/grammar/translation 折叠的"还不懂？"展开；标题常显；defaultExpandedTiers 单点常量预留设置化）；历史行 = 原文首行 + 书/时间/层级徽标；操作（重新生成=覆盖、删除=ask 确认）；顶栏切换按钮 + 菜单入口闭环；移动端全宽 sheet；生成中骨架；跨重启不保留当前条目（store 内存态）。
 - **入口与工具栏**：`AnnotationToolType` 增 `explainer`（label "Explain"、LuGraduationCap、quickAction），插入工具栏配置（translate 之后，**默认开启**），同步 ALL/DEFAULT 列表与同步性单测；处理器照 translate 范式（关弹窗+抑制手柄+保留选择）→ openExplainer；未配置 AI → 面板内联空态（无入口 toast）。
 - **讲解库页面**：库页头部入口 → 独立页面；时间倒序、分页 20/页 + 加载更多；搜索（text LIKE）+ 仅本书筛选；行展开卡片复用 ExplainerCascade（compact 变体复用 ExplainerItemCard）；空/加载/无结果三态；跳转 `navigateToReader`（cfi 参数，annotation-link 机制）fail-soft。
