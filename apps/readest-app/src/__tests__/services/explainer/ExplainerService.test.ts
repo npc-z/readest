@@ -49,8 +49,18 @@ class FakeStore implements ExplainerStore {
 class BlockingStore extends FakeStore {
   blocked = false;
   private release!: () => void;
+  private signalEntered!: () => void;
+  readonly upsertEntered: Promise<void>;
+
+  constructor() {
+    super();
+    this.upsertEntered = new Promise((resolve) => {
+      this.signalEntered = resolve;
+    });
+  }
 
   override async upsert(entry: ExplanationEntry): Promise<void> {
+    this.signalEntered();
     await super.upsert(entry);
     if (this.blocked) {
       await new Promise<void>((resolve) => {
@@ -171,7 +181,8 @@ describe('ExplainerService.getOrGenerate', () => {
     const service = makeService(ai, store);
 
     const pending = service.getOrGenerate(request());
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    // Deterministically wait until the service actually reaches the store write.
+    await store.upsertEntered;
 
     // The write already happened, but the service must not have returned yet.
     expect(store.upserts).toHaveLength(1);
