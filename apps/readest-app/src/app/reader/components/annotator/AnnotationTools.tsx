@@ -7,6 +7,7 @@ import { PiHighlighterFill } from 'react-icons/pi';
 import { LuBookA } from 'react-icons/lu';
 import { BsPencilSquare } from 'react-icons/bs';
 import { BsTranslate } from 'react-icons/bs';
+import { LuGraduationCap } from 'react-icons/lu';
 import { FaHeadphones } from 'react-icons/fa6';
 import { IoIosBuild } from 'react-icons/io';
 import { AnnotationToolType } from '@/types/annotator';
@@ -82,6 +83,13 @@ export const annotationToolButtons = createAnnotationToolButtons([
     label: _('Translate'),
     tooltip: _('Translate text after selection'),
     Icon: BsTranslate,
+    quickAction: true,
+  },
+  {
+    type: 'explainer',
+    label: _('Explain'),
+    tooltip: _('Explain text after selection'),
+    Icon: LuGraduationCap,
     quickAction: true,
   },
   {

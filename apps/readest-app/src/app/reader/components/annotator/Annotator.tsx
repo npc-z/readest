@@ -19,6 +19,7 @@ import { getBookProgress, useBookProgress } from '@/store/readerProgressStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useReaderStore } from '@/store/readerStore';
 import { useNotebookStore } from '@/store/notebookStore';
+import { useExplainerStore } from '@/store/explainerStore';
 import { useSidebarStore } from '@/store/sidebarStore';
 import { useCustomDictionaryStore } from '@/store/customDictionaryStore';
 import { isSystemDictionaryEnabled } from '@/services/dictionaries/registry';
@@ -1654,6 +1655,23 @@ const Annotator: React.FC<{ bookKey: string; contentInsets: Insets }> = ({
     setShowDeepLPopup(true);
   };
 
+  const handleExplainer = () => {
+    if (!selection || !selection.text) return;
+    setShowAnnotPopup(false);
+    void suppressNativeSelectionHandles();
+    const book = bookData.book;
+    useExplainerStore.getState().openExplainer({
+      text: selection.text,
+      cfi: selection.cfi ?? null,
+      bookHash: book?.hash ?? bookKey.split('-')[0]!,
+      bookTitle: book?.title ?? '',
+      // Language resolution is refined in ticket 06; for now the model detects
+      // the source language and the native language is the UI snapshot.
+      sourceLang: book?.primaryLanguage || 'auto',
+      nativeLang: getLocale(),
+    });
+  };
+
   const handleSpeakText = async (oneTime = false) => {
     if (!selection || !selection.text) return;
     // TTS walks the main view's documents; a popup-window range can't seed it
@@ -2342,6 +2360,8 @@ const Annotator: React.FC<{ bookKey: string; contentInsets: Insets }> = ({
         return { tooltipText: _(label), Icon, onClick: handleDictionary };
       case 'translate':
         return { tooltipText: _(label), Icon, onClick: handleTranslation };
+      case 'explainer':
+        return { tooltipText: _(label), Icon, onClick: handleExplainer };
       case 'tts':
         return {
           tooltipText: _(label),

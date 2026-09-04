@@ -6,6 +6,8 @@ import { isTauriAppPlatform } from '@/services/environment';
 
 import {
   EXPLAINER_ERROR_CODES,
+  EXPLAINER_DEFAULT_BASE_URL,
+  explainerMaxOutputTokens,
   EXPLAINER_GENERATION_PARAMS,
   explainerTimeoutMs,
   type ExplainerErrorCode,
@@ -13,10 +15,10 @@ import {
 } from './constants';
 import { classifyGenerationError, ExplainerServiceError } from './errors';
 import { buildExplainerInputPrompt, buildExplainerSystemPrompt } from './prompts';
-import { buildProviderOptions } from './thinking';
+import { buildProviderOptions, isReasoningDefaultEndpoint } from './thinking';
 
 // Re-exported so callers/tests can share the single thinking-mapping source.
-export { buildProviderOptions };
+export { buildProviderOptions, isReasoningDefaultEndpoint };
 
 /** Everything a gateway needs to generate one explanation. */
 export interface ExplainerAiRequest {
@@ -107,10 +109,14 @@ class DirectExplainerAiGateway implements ExplainerAiGateway {
         system,
         prompt: buildExplainerInputPrompt(request.text),
         temperature: EXPLAINER_GENERATION_PARAMS.temperature,
-        maxOutputTokens: EXPLAINER_GENERATION_PARAMS.maxOutputTokens,
+        maxOutputTokens: explainerMaxOutputTokens(request.thinking),
         maxRetries: EXPLAINER_GENERATION_PARAMS.maxRetries,
         abortSignal: AbortSignal.timeout(explainerTimeoutMs(request.thinking)),
-        providerOptions: buildProviderOptions(request.thinking, providerNamespace),
+        providerOptions: buildProviderOptions(
+          request.thinking,
+          providerNamespace,
+          this.settings.provider === 'openrouter' ? this.settings.openrouterBaseUrl : undefined,
+        ),
       });
 
       return { rawText: result.text ?? '' };
@@ -129,13 +135,23 @@ class DirectExplainerAiGateway implements ExplainerAiGateway {
 class WebExplainerAiGateway implements ExplainerAiGateway {
   constructor(private readonly settings: AISettings) {}
 
-  private credentials(): { apiKey: string; model: string } {
+  private credentials(): { apiKey: string; model: string; provider: string; baseURL: string } {
     const s = this.settings;
     if (s.provider === 'openrouter') {
-      return { apiKey: s.openrouterApiKey ?? '', model: s.openrouterModel ?? '' };
+      return {
+        apiKey: s.openrouterApiKey ?? '',
+        model: s.openrouterModel ?? '',
+        provider: 'openrouter',
+        baseURL: s.openrouterBaseUrl ?? EXPLAINER_DEFAULT_BASE_URL,
+      };
     }
     // ai-gateway (default for the web route) and any fallback fields.
-    return { apiKey: s.aiGatewayApiKey ?? '', model: s.aiGatewayModel ?? '' };
+    return {
+      apiKey: s.aiGatewayApiKey ?? '',
+      model: s.aiGatewayModel ?? '',
+      provider: 'ai-gateway',
+      baseURL: '',
+    };
   }
 
   async generate(request: ExplainerAiRequest): Promise<ExplainerAiResult> {
@@ -151,7 +167,7 @@ class WebExplainerAiGateway implements ExplainerAiGateway {
       );
     }
 
-    const { apiKey, model } = this.credentials();
+    const { apiKey, model, provider, baseURL } = this.credentials();
     let response: Response;
     try {
       response = await fetch('/api/ai/explain', {
@@ -164,6 +180,8 @@ class WebExplainerAiGateway implements ExplainerAiGateway {
           thinking: request.thinking,
           apiKey,
           model,
+          provider,
+          baseURL,
         }),
         signal: AbortSignal.timeout(explainerTimeoutMs(request.thinking)),
       });
@@ -196,6 +214,7 @@ class WebExplainerAiGateway implements ExplainerAiGateway {
   private codeForStatus(status: number): ExplainerErrorCode {
     if (status === 401) return 'ai-not-configured';
     if (status === 504) return 'timeout';
+    if (status === 429) return 'rate-limited';
     return 'provider-error';
   }
 }

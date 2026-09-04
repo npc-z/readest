@@ -6,6 +6,7 @@ import {
   buildProviderOptions,
   createExplainerAiGateway,
   DirectExplainerAiGateway,
+  isReasoningDefaultEndpoint,
   isAiConfigured,
   WebExplainerAiGateway,
 } from '@/services/explainer/gateway';
@@ -57,23 +58,52 @@ describe('isAiConfigured', () => {
 });
 
 describe('buildProviderOptions', () => {
-  test('maps off to no provider options', () => {
+  test('off sends nothing for generic endpoints (off is their own default)', () => {
     expect(buildProviderOptions('off', 'openrouter')).toEqual({});
-    expect(buildProviderOptions('off', 'gateway')).toEqual({});
+    expect(buildProviderOptions('off', 'gateway', 'https://openrouter.ai/api/v1')).toEqual({});
+    expect(buildProviderOptions('off', 'openrouter', 'https://openrouter.ai/api/v1')).toEqual({});
+  });
+
+  test('off sends a disabled thinking signal (no reasoning_effort) only for reasoning-default endpoints', () => {
+    expect(buildProviderOptions('off', 'openrouter', 'https://api.deepseek.com')).toEqual({
+      openrouter: { thinking: { type: 'disabled' } },
+    });
+    expect(buildProviderOptions('off', 'openrouter', 'https://api.deepseek.com/v1')).toEqual({
+      openrouter: { thinking: { type: 'disabled' } },
+    });
   });
 
   test('returns nothing for Ollama (think is handled at model construction)', () => {
     expect(buildProviderOptions('low', 'ollama')).toEqual({});
     expect(buildProviderOptions('high', 'ollama')).toEqual({});
+    expect(buildProviderOptions('off', 'ollama', 'https://api.deepseek.com')).toEqual({});
   });
 
-  test('maps openai-style namespaces to reasoningEffort', () => {
+  test('maps openai-style namespaces to enabled thinking + reasoningEffort', () => {
     expect(buildProviderOptions('medium', 'openrouter')).toEqual({
-      openrouter: { reasoningEffort: 'medium' },
+      openrouter: { thinking: { type: 'enabled' }, reasoningEffort: 'medium' },
     });
     expect(buildProviderOptions('high', 'gateway')).toEqual({
-      gateway: { reasoningEffort: 'high' },
+      gateway: { thinking: { type: 'enabled' }, reasoningEffort: 'high' },
     });
+  });
+
+  test('normalizes model.provider (openrouter.chat) to the SDK namespace', () => {
+    expect(buildProviderOptions('high', 'openrouter.chat')).toEqual({
+      openrouter: { thinking: { type: 'enabled' }, reasoningEffort: 'high' },
+    });
+  });
+});
+
+describe('isReasoningDefaultEndpoint', () => {
+  test('detects DeepSeek hosts and rejects others', () => {
+    expect(isReasoningDefaultEndpoint('https://api.deepseek.com')).toBe(true);
+    expect(isReasoningDefaultEndpoint('https://api.deepseek.com/v1')).toBe(true);
+    expect(isReasoningDefaultEndpoint('https://deepseek.com')).toBe(true);
+    expect(isReasoningDefaultEndpoint('https://api.deepseek.com.')).toBe(true);
+    expect(isReasoningDefaultEndpoint('https://openrouter.ai/api/v1')).toBe(false);
+    expect(isReasoningDefaultEndpoint(undefined)).toBe(false);
+    expect(isReasoningDefaultEndpoint('not a url')).toBe(false);
   });
 });
 
@@ -128,7 +158,32 @@ describe('DirectExplainerAiGateway', () => {
 
     expect(provider.getModel).toHaveBeenCalledWith();
     const call = generateTextMock.mock.calls[0]![0];
-    expect(call.providerOptions).toEqual({ openrouter: { reasoningEffort: 'medium' } });
+    expect(call.providerOptions).toEqual({
+      openrouter: { thinking: { type: 'enabled' }, reasoningEffort: 'medium' },
+    });
+  });
+
+  test('does not feed a lingering openrouter baseURL into a gateway/ollama off branch', async () => {
+    const settings: AISettings = {
+      ...DEFAULT_AI_SETTINGS,
+      enabled: true,
+      provider: 'ai-gateway',
+      aiGatewayApiKey: 'gateway-key',
+      openrouterBaseUrl: 'https://api.deepseek.com',
+    };
+    getAIProviderMock.mockReturnValue(fakeProvider('gateway'));
+    const gateway = new DirectExplainerAiGateway(settings);
+
+    await gateway.generate({
+      text: 'Hello world',
+      sourceLang: 'en',
+      nativeLang: 'zh-CN',
+      thinking: 'off',
+    });
+
+    // Even though openrouterBaseUrl points at DeepSeek, the active provider is
+    // ai-gateway, so the baseURL must not reach the mapper (off stays a no-op).
+    expect(generateTextMock.mock.calls[0]![0].providerOptions).toEqual({});
   });
 });
 
@@ -151,7 +206,7 @@ describe('WebExplainerAiGateway', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  test('posts text/languages/thinking/apiKey/model and returns the raw text', async () => {
+  test('posts text/languages/thinking/apiKey/model/provider/baseURL and returns the raw text', async () => {
     fetchMock.mockResolvedValue(
       new Response(JSON.stringify({ text: '{"simple":"hi"}' }), { status: 200 }),
     );
@@ -170,6 +225,8 @@ describe('WebExplainerAiGateway', () => {
       nativeLang: 'zh-CN',
       thinking: 'high',
       apiKey: 'sk-key',
+      provider: 'openrouter',
+      baseURL: 'https://openrouter.ai/api/v1',
     });
     expect(options.signal).toBeInstanceOf(AbortSignal);
   });
@@ -197,6 +254,15 @@ describe('WebExplainerAiGateway', () => {
     const gateway = new WebExplainerAiGateway(openrouter());
 
     await expect(gateway.generate(request)).rejects.toMatchObject({ code: 'timeout' });
+  });
+
+  test('maps a 429 body to rate-limited by status', async () => {
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ error: { code: 'rate-limited' } }), { status: 429 }),
+    );
+    const gateway = new WebExplainerAiGateway(openrouter());
+
+    await expect(gateway.generate(request)).rejects.toMatchObject({ code: 'rate-limited' });
   });
 });
 

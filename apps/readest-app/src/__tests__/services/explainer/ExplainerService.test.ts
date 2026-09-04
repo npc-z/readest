@@ -1,6 +1,10 @@
 import { describe, expect, test } from 'vitest';
 
-import { EXPLAINER_INPUT_LIMITS, type ExplainerErrorCode } from '@/services/explainer/constants';
+import {
+  EXPLAINER_INPUT_LIMITS,
+  explainerCacheKey,
+  type ExplainerErrorCode,
+} from '@/services/explainer/constants';
 import {
   ExplainerService,
   type ExplainerStore,
@@ -23,7 +27,7 @@ class FakeStore implements ExplainerStore {
   upserts: ExplanationEntry[] = [];
 
   private key(bookHash: string, textHash: string, nativeLang: string): string {
-    return `${bookHash}:${textHash}:${nativeLang}`;
+    return explainerCacheKey(bookHash, textHash, nativeLang);
   }
 
   async getByKey(
@@ -38,6 +42,15 @@ class FakeStore implements ExplainerStore {
   async upsert(entry: ExplanationEntry): Promise<void> {
     this.upserts.push(entry);
     this.entries.set(this.key(entry.bookHash, entry.textHash, entry.nativeLang), entry);
+  }
+
+  async delete(id: string): Promise<void> {
+    for (const [key, entry] of this.entries) {
+      if (entry.id === id) {
+        this.entries.delete(key);
+        break;
+      }
+    }
   }
 }
 
@@ -331,5 +344,65 @@ describe('ExplainerService error codes', () => {
     });
     const service = makeService(ai);
     await expectCode(service.getOrGenerate(request()), 'provider-error');
+  });
+});
+
+describe('ExplainerService regenerate and delete', () => {
+  test('regenerate bypasses the cache and overwrites the same cache key', async () => {
+    const ai = new FakeAi(() => jsonResult(validPayload()));
+    const store = new FakeStore();
+    const service = makeService(ai, store);
+
+    const first = await service.getOrGenerate(request());
+    expect(ai.calls).toHaveLength(1);
+
+    const second = await service.regenerate(request());
+
+    // regen genuinely re-calls AI instead of cache-hitting, same key overwritten.
+    expect(ai.calls).toHaveLength(2);
+    expect(store.upserts).toHaveLength(2);
+    expect(second.textHash).toBe(first.textHash);
+    expect(second.bookHash).toBe(first.bookHash);
+    expect(store.upserts.at(-1)?.textHash).toBe(first.textHash);
+  });
+
+  test('deleteExplanation removes a persisted entry by id', async () => {
+    const ai = new FakeAi(() => jsonResult(validPayload()));
+    const store = new FakeStore();
+    const service = makeService(ai, store);
+
+    const entry = await service.getOrGenerate(request());
+    expect(store.entries.size).toBe(1);
+
+    await service.deleteExplanation(entry.id);
+
+    expect(store.entries.size).toBe(0);
+    // A subsequent request is a fresh cache miss again.
+    await service.getOrGenerate(request());
+    expect(ai.calls).toHaveLength(2);
+  });
+
+  test('regenerate reuses the persisted row id so a follow-up delete by id removes it', async () => {
+    const ai = new FakeAi(() => jsonResult(validPayload()));
+    const store = new FakeStore();
+    let counter = 0;
+    const service = new ExplainerService({
+      store,
+      ai,
+      now: () => 1000,
+      generateId: () => `id-${++counter}`,
+    });
+
+    const first = await service.getOrGenerate(request());
+    expect(first.id).toBe('id-1');
+
+    // Regenerate reads the existing row and reuses its id (SQLite upsert keeps
+    // the first-created id), so `generateId` is not called again.
+    const second = await service.regenerate(request());
+    expect(second.id).toBe('id-1');
+    expect(counter).toBe(1);
+
+    await service.deleteExplanation(second.id);
+    expect(store.entries.size).toBe(0);
   });
 });

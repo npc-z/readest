@@ -4,6 +4,7 @@ import {
   DEFAULT_EXPLAINER_THINKING,
   EXPLAINER_INPUT_LIMITS,
   EXPLAINER_PROMPT_VERSION,
+  explainerCacheKey,
   type ExplainerThinkingLevel,
 } from './constants';
 import type { ExplanationEntry } from './ExplainerDb';
@@ -27,6 +28,7 @@ export interface ExplainerStore {
     nativeLang: string,
   ): Promise<ExplanationEntry | null>;
   upsert(entry: ExplanationEntry): Promise<void>;
+  delete(id: string): Promise<void>;
 }
 
 export interface GetOrGenerateRequest {
@@ -81,26 +83,7 @@ export class ExplainerService {
   }
 
   async getOrGenerate(request: GetOrGenerateRequest): Promise<ExplanationEntry> {
-    // 1. Reject known-bad input before any provider call.
-    if (isMeaninglessText(request.text)) {
-      throw new ExplainerServiceError(
-        'invalid-input',
-        'Nothing to explain: the passage has no letters or numbers.',
-      );
-    }
-    if (containsInputCloseTag(request.text)) {
-      throw new ExplainerServiceError(
-        'invalid-input',
-        'The passage contains the reserved closing input delimiter.',
-      );
-    }
-
-    // 2. Cap to the input unit limit, then normalize+hash the *display* text.
-    //    `text` (display) and `textHash` (normalized key input) stay separate:
-    //    formatting-only differences hit the same cache key.
-    const { text, truncated } = truncateToUnitLimit(request.text, EXPLAINER_INPUT_LIMITS.maxUnits);
-    const { hash } = await normalizeAndHashText(text);
-    const key = `${request.bookHash}:${hash}:${request.nativeLang}`;
+    const { text, hash, truncated, key } = await this.prepareRequest(request);
 
     // 3. Cache hit — no AI call, no write.
     const cached = await this.store.getByKey(request.bookHash, hash, request.nativeLang);
@@ -122,6 +105,56 @@ export class ExplainerService {
     }
   }
 
+  /**
+   * Force a fresh generation for the same cache key (overwrites in place).
+   * Unlike {@link getOrGenerate}, it intentionally bypasses the cache and the
+   * in-flight dedup — the user asked for a new answer, so a cached or shared
+   * promise would just return the old one.
+   */
+  async regenerate(request: GetOrGenerateRequest): Promise<ExplanationEntry> {
+    const { text, hash, truncated } = await this.prepareRequest(request);
+    // Reuse the persisted row id: upsert keeps the first-created id (`ON CONFLICT
+    // ... DO UPDATE` doesn't touch `id`), so the panel must hold the same id a
+    // later delete by id can remove. Reading by key gives us that id.
+    const existing = await this.store.getByKey(request.bookHash, hash, request.nativeLang);
+    return this.generateAndStore({ ...request, text }, hash, truncated, existing?.id);
+  }
+
+  /** Delete a persisted entry by id (the "regenerate overrides" vs "delete" split). */
+  async deleteExplanation(id: string): Promise<void> {
+    await this.store.delete(id);
+  }
+
+  /**
+   * Validate, cap, and normalize+hash the request. Shared by the cache path and
+   * the force path so truncation/`invalid-input` semantics stay identical.
+   */
+  private async prepareRequest(
+    request: GetOrGenerateRequest,
+  ): Promise<{ text: string; hash: string; truncated: boolean; key: string }> {
+    if (isMeaninglessText(request.text)) {
+      throw new ExplainerServiceError(
+        'invalid-input',
+        'Nothing to explain: the passage has no letters or numbers.',
+      );
+    }
+    if (containsInputCloseTag(request.text)) {
+      throw new ExplainerServiceError(
+        'invalid-input',
+        'The passage contains the reserved closing input delimiter.',
+      );
+    }
+
+    const { text, truncated } = truncateToUnitLimit(request.text, EXPLAINER_INPUT_LIMITS.maxUnits);
+    const { hash } = await normalizeAndHashText(text);
+    return {
+      text,
+      hash,
+      truncated,
+      key: explainerCacheKey(request.bookHash, hash, request.nativeLang),
+    };
+  }
+
   private withTruncated(entry: ExplanationEntry, truncated: boolean): ExplanationEntry {
     return truncated ? { ...entry, truncated: true } : entry;
   }
@@ -130,12 +163,13 @@ export class ExplainerService {
     request: GetOrGenerateRequest,
     hash: string,
     truncated: boolean,
+    id?: string,
   ): Promise<ExplanationEntry> {
     const payload = await this.generatePayload(request);
     const now = this.now();
 
     const entry: ExplanationEntry = {
-      id: this.generateId(),
+      id: id ?? this.generateId(),
       bookHash: request.bookHash,
       bookTitle: request.bookTitle,
       text: request.text,
