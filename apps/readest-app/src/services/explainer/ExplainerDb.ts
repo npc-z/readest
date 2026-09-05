@@ -204,4 +204,21 @@ export class ExplainerDb {
     }
     return this.list(where, parameters, options);
   }
+
+  /**
+   * Distinct books that have at least one explanation, for the library page's
+   * "only this book" filter. Returns a label (any snapshot title) per book in
+   * most-recent-explanation order; deduped by book_hash.
+   */
+  async listBooks(): Promise<{ bookHash: string; bookTitle: string }[]> {
+    return this.withDb(async (database) => {
+      const rows = await database.select<{ book_hash: string; book_title: string }>(
+        `SELECT book_hash, book_title
+         FROM explanations
+         GROUP BY book_hash
+         ORDER BY MAX(created_at) DESC`,
+      );
+      return rows.map((row) => ({ bookHash: row.book_hash, bookTitle: row.book_title }));
+    });
+  }
 }
