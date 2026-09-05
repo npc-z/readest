@@ -10,8 +10,10 @@ import { useTranslation } from '@/hooks/useTranslation';
 import { DEFAULT_AI_SETTINGS } from '@/services/ai/constants';
 import {
   DEFAULT_EXPLAINER_THINKING,
+  type ExplainerErrorCode,
   type ExplainerThinkingLevel,
 } from '@/services/explainer/constants';
+import { EXPLAINER_ACTION_KEYS, EXPLAINER_ERROR_MESSAGE_KEYS } from '@/services/explainer/i18n';
 import { ExplainerDb, type ExplanationEntry } from '@/services/explainer/ExplainerDb';
 import { isAiConfigured } from '@/services/explainer/gateway';
 import type { ExplainerOpenRequest } from '@/store/explainerStore';
@@ -28,6 +30,22 @@ const errorCodeOf = (error: unknown): string => {
     return (error as { code: string }).code;
   }
   return 'provider-error';
+};
+
+/**
+ * Map a generation error code to a localized message for an inline toast. The
+ * service never ships display text; the UI maps a code to a translated key here
+ * (shared with the panel via EXPLAINER_ERROR_MESSAGE_KEYS). Falls back to the
+ * action-only text when the code is outside the known set (e.g. a DB error), so
+ * a bare `provider-error`-style code is never shown to the user.
+ */
+const actionFailedMessage = (
+  _: (key: string) => string,
+  actionKey: string,
+  code: string,
+): string => {
+  const detailKey = EXPLAINER_ERROR_MESSAGE_KEYS[code as ExplainerErrorCode];
+  return detailKey ? `${_(actionKey)} ${_(detailKey)}` : _(actionKey);
 };
 
 /** Build a regenerate request that overwrites the entry's own cache key. */
@@ -113,11 +131,11 @@ export default function ExplainerLibraryPage() {
           // surfaces an inline message; it must not replace the list.
           eventDispatcher.dispatch('toast', {
             type: 'error',
-            message: `[${errorCodeOf(err)}] ${_('Could not load more.')}`,
+            message: actionFailedMessage(_, EXPLAINER_ACTION_KEYS.loadMoreFailed, errorCodeOf(err)),
             timeout: 3500,
           });
         } else {
-          setError(err instanceof Error ? err.message : 'Failed to load explanations.');
+          setError(EXPLAINER_ACTION_KEYS.loadExplanationsFailed);
         }
       } finally {
         // Only the latest request clears the loading flag; a superseded request
@@ -150,7 +168,7 @@ export default function ExplainerLibraryPage() {
         // provider error — surface it inline and let the user retry.
         eventDispatcher.dispatch('toast', {
           type: 'error',
-          message: `[${errorCodeOf(err)}] ${_('Regenerate failed.')}`,
+          message: actionFailedMessage(_, EXPLAINER_ACTION_KEYS.regenerateFailed, errorCodeOf(err)),
           timeout: 3500,
         });
       } finally {
@@ -175,7 +193,7 @@ export default function ExplainerLibraryPage() {
       } catch (err) {
         eventDispatcher.dispatch('toast', {
           type: 'error',
-          message: `[${errorCodeOf(err)}] ${_('Delete failed.')}`,
+          message: actionFailedMessage(_, EXPLAINER_ACTION_KEYS.deleteFailed, errorCodeOf(err)),
           timeout: 3500,
         });
       }
@@ -191,7 +209,7 @@ export default function ExplainerLibraryPage() {
       } catch (err) {
         eventDispatcher.dispatch('toast', {
           type: 'error',
-          message: `[${errorCodeOf(err)}] ${_('Could not open the book.')}`,
+          message: actionFailedMessage(_, EXPLAINER_ACTION_KEYS.openBookFailed, errorCodeOf(err)),
           timeout: 3500,
         });
       }
@@ -290,7 +308,7 @@ export default function ExplainerLibraryPage() {
           </div>
         ) : error && entries.length === 0 ? (
           <p role='alert' className='text-sm text-base-content/70'>
-            {error || _('Could not load explanations.')}
+            {_(error)}
           </p>
         ) : isEmpty ? (
           <div

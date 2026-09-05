@@ -90,7 +90,7 @@ describe('ExplainerCascade', () => {
   it('renders the always-on Simple tier with its text', () => {
     render(<Harness payload={jsonPayload()} />);
 
-    expect(screen.queryByText('Simplified')).not.toBeNull();
+    expect(screen.queryByText('Simple')).not.toBeNull();
     expect(screen.queryByText('A quick fox jumps over a lazy dog.')).not.toBeNull();
   });
 
@@ -99,7 +99,7 @@ describe('ExplainerCascade', () => {
 
     expect(screen.queryByText('Words & Phrases')).not.toBeNull();
     expect(screen.queryByText('Grammar')).not.toBeNull();
-    expect(screen.queryByText('Translation')).not.toBeNull();
+    expect(screen.queryByText('Native Translation')).not.toBeNull();
 
     expect(screen.getByTestId('explainer-toggle-notes').getAttribute('aria-expanded')).toBe(
       'false',
@@ -154,7 +154,7 @@ describe('ExplainerCascade', () => {
 
     expect(screen.queryByText('Words & Phrases')).toBeNull();
     // Missing translationM -> no Translation tier.
-    expect(screen.queryByText('Translation')).toBeNull();
+    expect(screen.queryByText('Native Translation')).toBeNull();
     // Grammar present -> rendered.
     expect(screen.queryByText('Grammar')).not.toBeNull();
   });
@@ -164,7 +164,7 @@ describe('ExplainerCascade', () => {
 
     expect(screen.queryByText('Grammar')).toBeNull();
     expect(screen.queryByText('Words & Phrases')).not.toBeNull();
-    expect(screen.queryByText('Translation')).not.toBeNull();
+    expect(screen.queryByText('Native Translation')).not.toBeNull();
   });
 
   it('renders a text-format payload flat as only the Simple tier, ignoring permissive extras', () => {
@@ -177,7 +177,7 @@ describe('ExplainerCascade', () => {
     expect(screen.queryByText('A prose fallback restatement.')).not.toBeNull();
     expect(screen.queryByText('Words & Phrases')).toBeNull();
     expect(screen.queryByText('Grammar')).toBeNull();
-    expect(screen.queryByText('Translation')).toBeNull();
+    expect(screen.queryByText('Native Translation')).toBeNull();
   });
 
   it('shows a loading skeleton placeholder when status is loading', () => {
