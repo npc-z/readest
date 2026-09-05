@@ -39,6 +39,11 @@ import {
   type ExplainerOpenRequest,
 } from '@/store/explainerStore';
 import type { ExplainerSettings } from '@/types/settings';
+import {
+  EXPLAINER_ERROR_MESSAGE_KEYS,
+  EXPLAINER_THINKING_LABEL_KEYS,
+  EXPLAINER_TRUNCATED_TOAST_KEY,
+} from '@/services/explainer/i18n';
 import ExplainerCascade from './ExplainerCascade';
 import ExplainerItemCard from './ExplainerItemCard';
 import { createExplainerGenerator, type ExplainerGenerator } from './generator';
@@ -73,20 +78,13 @@ const toastIfTruncated = (entry: ExplanationEntry, translate: (key: string) => s
   if (entry.truncated) {
     eventDispatcher.dispatch('toast', {
       type: 'warning',
-      message: translate('Only the first part was explained.'),
+      message: translate(EXPLAINER_TRUNCATED_TOAST_KEY),
       timeout: 3000,
     });
   }
 };
 
-const ERROR_MESSAGE_KEYS: Record<ExplainerErrorCode, string> = {
-  'ai-not-configured': 'AI is not configured.',
-  timeout: 'The request timed out.',
-  'provider-error': 'The AI provider returned an error.',
-  'no-object-salvaged': 'The answer could not be parsed.',
-  'invalid-input': 'There is nothing to explain.',
-  'rate-limited': 'Too many requests. Please try again later.',
-};
+const ERROR_MESSAGE_KEYS: Record<ExplainerErrorCode, string> = EXPLAINER_ERROR_MESSAGE_KEYS;
 
 /** Read-only generation tuning shown in the info popover (never editable). */
 const readOnlyTuning = (
@@ -548,7 +546,7 @@ export default function ExplainerPanel({
             >
               {EXPLAINER_THINKING_LEVELS.map((level) => (
                 <option key={level} value={level}>
-                  {_(`Thinking ${level}`)}
+                  {_(EXPLAINER_THINKING_LABEL_KEYS[level])}
                 </option>
               ))}
             </PanelSelect>

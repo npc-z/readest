@@ -68,7 +68,7 @@ describe('ExplainerItemCard', () => {
     // Tier badges for the non-text payload.
     expect(screen.getByText('Words & Phrases')).toBeTruthy();
     expect(screen.getByText('Grammar')).toBeTruthy();
-    expect(screen.getByText('Translation')).toBeTruthy();
+    expect(screen.getByText('Native Translation')).toBeTruthy();
 
     fireEvent.click(screen.getByTestId('explainer-card-row'));
     expect(onOpen).toHaveBeenCalledWith(expect.objectContaining({ id: 'entry-1' }));

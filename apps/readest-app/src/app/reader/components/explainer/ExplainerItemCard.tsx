@@ -23,7 +23,7 @@ const firstLineOf = (text: string): string => {
 const BADGE_KEYS: { key: string; visible: (p: ExplainerPayload) => boolean }[] = [
   { key: 'Words & Phrases', visible: (p) => (p.notes?.length ?? 0) > 0 },
   { key: 'Grammar', visible: (p) => (p.grammar?.length ?? 0) > 0 },
-  { key: 'Translation', visible: (p) => Boolean(p.translationM?.trim()) },
+  { key: 'Native Translation', visible: (p) => Boolean(p.translationM?.trim()) },
 ];
 
 export interface ExplainerItemCardProps {

@@ -3,6 +3,7 @@
 import type { ReactNode } from 'react';
 
 import { useTranslation } from '@/hooks/useTranslation';
+import { EXPLAINER_NOTE_KIND_BADGE_KEYS } from '@/services/explainer/i18n';
 import type { ExplainerPayload } from '@/services/explainer/schema';
 import type { ExplainerExpandedTiers, ExplainerTier } from '@/store/explainerStore';
 
@@ -62,9 +63,9 @@ export default function ExplainerCascade({
 
   return (
     <div className='flex flex-col gap-3'>
-      <section aria-label={_('Simplified')}>
+      <section aria-label={_('Simple')}>
         <h3 className='text-xs font-semibold uppercase tracking-wide text-base-content/60'>
-          {_('Simplified')}
+          {_('Simple')}
         </h3>
         <p className='mt-1 whitespace-pre-wrap text-sm leading-relaxed'>{payload.simple}</p>
       </section>
@@ -118,7 +119,7 @@ export default function ExplainerCascade({
       {hasTranslation && (
         <CollapsibleTier
           tier='translation'
-          title={_('Translation')}
+          title={_('Native Translation')}
           expanded={expanded.has('translation')}
           onToggle={onToggle}
           _={_}
@@ -137,7 +138,7 @@ function Badge({
   kind: 'word' | 'phrase' | 'idiom';
   _: (key: string, options?: Record<string, string | number>) => string;
 }) {
-  const label = kind === 'word' ? 'Word' : kind === 'phrase' ? 'Phrase' : 'Idiom';
+  const label = EXPLAINER_NOTE_KIND_BADGE_KEYS[kind];
   return (
     <span className='badge badge-outline badge-sm' data-kind={kind}>
       {_(label)}
