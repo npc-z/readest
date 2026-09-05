@@ -7,7 +7,7 @@ import {
   explainerCacheKey,
   type ExplainerThinkingLevel,
 } from './constants';
-import type { ExplanationEntry } from './ExplainerDb';
+import type { ExplanationEntry, ListOptions } from './ExplainerDb';
 import { classifyGenerationError, ExplainerServiceError } from './errors';
 import { createExplainerAiGateway, type ExplainerAiGateway } from './gateway';
 import { salvagePayload } from './salvage';
@@ -29,6 +29,8 @@ export interface ExplainerStore {
   ): Promise<ExplanationEntry | null>;
   upsert(entry: ExplanationEntry): Promise<void>;
   delete(id: string): Promise<void>;
+  /** List a book's explanations, newest first, for the panel history view. */
+  listByBook(bookHash: string, options: ListOptions): Promise<ExplanationEntry[]>;
 }
 
 export interface GetOrGenerateRequest {
@@ -123,6 +125,14 @@ export class ExplainerService {
   /** Delete a persisted entry by id (the "regenerate overrides" vs "delete" split). */
   async deleteExplanation(id: string): Promise<void> {
     await this.store.delete(id);
+  }
+
+  /**
+   * List a book's explanations, newest first, for the panel history view. The
+   * UI owns pagination via `options`; the service just passes through.
+   */
+  async listByBook(bookHash: string, options: ListOptions): Promise<ExplanationEntry[]> {
+    return this.store.listByBook(bookHash, options);
   }
 
   /**

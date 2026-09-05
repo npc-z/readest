@@ -39,6 +39,16 @@ export type ExplainerThinkingLevel = (typeof EXPLAINER_THINKING_LEVELS)[number];
 
 export const DEFAULT_EXPLAINER_THINKING: ExplainerThinkingLevel = 'off';
 
+/**
+ * Defaults merged into `SystemSettings.explainerSettings` by the settings
+ * loader. Optional fields are left undefined so the reading side resolves each
+ * to its per-use default (sourceLang → book metadata / 'auto', nativeLang → UI
+ * snapshot). Thinking defaults to off per the model-parameters decision.
+ */
+export const DEFAULT_EXPLAINER_SETTINGS = {
+  thinking: DEFAULT_EXPLAINER_THINKING,
+} as const;
+
 /** Default OpenAI-compatible base URL (OpenRouter default from the AI settings). */
 export const EXPLAINER_DEFAULT_BASE_URL = 'https://openrouter.ai/api/v1';
 

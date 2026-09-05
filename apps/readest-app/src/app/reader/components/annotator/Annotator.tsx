@@ -19,7 +19,9 @@ import { getBookProgress, useBookProgress } from '@/store/readerProgressStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useReaderStore } from '@/store/readerStore';
 import { useNotebookStore } from '@/store/notebookStore';
-import { useExplainerStore } from '@/store/explainerStore';
+import { useExplainerStore, resolveBookHash } from '@/store/explainerStore';
+import { resolveExplainLanguages } from '@/services/explainer/language';
+import { DEFAULT_EXPLAINER_THINKING } from '@/services/explainer/constants';
 import { useSidebarStore } from '@/store/sidebarStore';
 import { useCustomDictionaryStore } from '@/store/customDictionaryStore';
 import { isSystemDictionaryEnabled } from '@/services/dictionaries/registry';
@@ -1660,15 +1662,21 @@ const Annotator: React.FC<{ bookKey: string; contentInsets: Insets }> = ({
     setShowAnnotPopup(false);
     void suppressNativeSelectionHandles();
     const book = bookData.book;
+    const explainerSettings = settings.explainerSettings;
+    const { sourceLang, nativeLang } = resolveExplainLanguages({
+      settingsSourceLang: explainerSettings?.sourceLang,
+      settingsNativeLang: explainerSettings?.nativeLang,
+      bookLanguage: book?.primaryLanguage,
+      uiLang: getLocale(),
+    });
     useExplainerStore.getState().openExplainer({
       text: selection.text,
       cfi: selection.cfi ?? null,
-      bookHash: book?.hash ?? bookKey.split('-')[0]!,
+      bookHash: resolveBookHash(book?.hash, bookKey),
       bookTitle: book?.title ?? '',
-      // Language resolution is refined in ticket 06; for now the model detects
-      // the source language and the native language is the UI snapshot.
-      sourceLang: book?.primaryLanguage || 'auto',
-      nativeLang: getLocale(),
+      sourceLang,
+      nativeLang,
+      thinking: explainerSettings?.thinking ?? DEFAULT_EXPLAINER_THINKING,
     });
   };
 
