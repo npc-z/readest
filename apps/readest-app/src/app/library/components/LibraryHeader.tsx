@@ -7,6 +7,7 @@ import { PiSelectionAll, PiSelectionAllFill } from 'react-icons/pi';
 import { PiDotsThreeCircle } from 'react-icons/pi';
 import { MdOutlineMenu } from 'react-icons/md';
 import { IoMdCloseCircle } from 'react-icons/io';
+import { LuGraduationCap } from 'react-icons/lu';
 
 import { useEnv } from '@/context/EnvContext';
 import { useThemeStore } from '@/store/themeStore';
@@ -34,6 +35,7 @@ interface LibraryHeaderProps {
   onImportBookFromNovelUrl?: () => void;
   onOpenCatalogManager: () => void;
   onOpenFeeds: () => void;
+  onOpenExplanations: () => void;
   onToggleSelectMode: () => void;
   onSelectAll: () => void;
   onDeselectAll: () => void;
@@ -56,6 +58,7 @@ const LibraryHeader: React.FC<LibraryHeaderProps> = ({
   onImportBookFromNovelUrl,
   onOpenCatalogManager,
   onOpenFeeds,
+  onOpenExplanations,
   onToggleSelectMode,
   onSelectAll,
   onDeselectAll,
@@ -254,6 +257,15 @@ const LibraryHeader: React.FC<LibraryHeaderProps> = ({
           </div>
         ) : (
           <div className='flex h-full items-center gap-x-2 sm:gap-x-4'>
+            <button
+              type='button'
+              aria-label={_('Explanations')}
+              title={_('Explanations')}
+              onClick={onOpenExplanations}
+              className='btn btn-ghost h-8 min-h-8 w-8 p-0'
+            >
+              <LuGraduationCap role='none' size={iconSize18} />
+            </button>
             <Dropdown
               label={_('View Menu')}
               className='exclude-title-bar-mousedown dropdown-bottom dropdown-end'

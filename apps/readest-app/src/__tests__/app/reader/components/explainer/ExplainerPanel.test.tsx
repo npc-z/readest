@@ -227,7 +227,7 @@ describe('ExplainerPanel', () => {
     await waitFor(() => expect(generator.listByBook).toHaveBeenCalledTimes(1));
     expect(generator.listByBook).toHaveBeenCalledWith('book-a', { limit: 50, offset: 0 });
     // Every history row's first line is rendered.
-    expect(screen.getAllByTestId('explainer-history-row').length).toBe(3);
+    expect(screen.getAllByTestId('explainer-card-row').length).toBe(3);
     // Current-entry content is replaced by the history rows.
     expect(screen.queryByText('A quick fox jumps over a lazy dog.')).toBeNull();
   });
@@ -244,10 +244,10 @@ describe('ExplainerPanel', () => {
     screen.getByTestId('explainer-view-history').click();
     await waitFor(() => expect(generator.listByBook).toHaveBeenCalled());
 
-    screen.getAllByTestId('explainer-history-regenerate')[0]!.click();
+    screen.getAllByTestId('explainer-card-regenerate')[0]!.click();
     await waitFor(() => expect(generator.regenerate).toHaveBeenCalledTimes(1));
     // The panel switches back to the item view and shows the refreshed entry.
-    await waitFor(() => expect(screen.queryAllByTestId('explainer-history-row').length).toBe(0));
+    await waitFor(() => expect(screen.queryAllByTestId('explainer-card-row').length).toBe(0));
     expect(screen.getByText('A quick fox jumps over a lazy dog.')).toBeTruthy();
   });
 
@@ -264,7 +264,7 @@ describe('ExplainerPanel', () => {
     await waitFor(() => expect(generator.listByBook).toHaveBeenCalled());
 
     const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
-    screen.getAllByTestId('explainer-history-delete')[0]!.click();
+    screen.getAllByTestId('explainer-card-delete')[0]!.click();
     await waitFor(() => expect(generator.deleteExplanation).toHaveBeenCalledTimes(1));
     await waitFor(() => expect(generator.listByBook).toHaveBeenCalledTimes(2));
     confirmSpy.mockRestore();

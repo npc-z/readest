@@ -40,6 +40,7 @@ import {
 } from '@/store/explainerStore';
 import type { ExplainerSettings } from '@/types/settings';
 import ExplainerCascade from './ExplainerCascade';
+import ExplainerItemCard from './ExplainerItemCard';
 import { createExplainerGenerator, type ExplainerGenerator } from './generator';
 
 type GenerationState =
@@ -85,12 +86,6 @@ const ERROR_MESSAGE_KEYS: Record<ExplainerErrorCode, string> = {
   'no-object-salvaged': 'The answer could not be parsed.',
   'invalid-input': 'There is nothing to explain.',
   'rate-limited': 'Too many requests. Please try again later.',
-};
-
-/** First line of a passage, for the compact history row label. */
-const firstLineOf = (text: string): string => {
-  const trimmed = text.trim().split(/\r?\n/)[0]?.trim() ?? '';
-  return trimmed.length > 80 ? `${trimmed.slice(0, 80)}…` : trimmed;
 };
 
 /** Read-only generation tuning shown in the info popover (never editable). */
@@ -703,12 +698,6 @@ const fallbackPayload = (): ExplainerPayload => ({
   metadata: { sourceLang: 'auto', nativeLang: 'en', promptVersion: 1 },
 });
 
-const BADGE_KEYS: { key: string; visible: (p: ExplainerPayload) => boolean }[] = [
-  { key: 'Words & Phrases', visible: (p) => (p.notes?.length ?? 0) > 0 },
-  { key: 'Grammar', visible: (p) => (p.grammar?.length ?? 0) > 0 },
-  { key: 'Translation', visible: (p) => Boolean(p.translationM?.trim()) },
-];
-
 function HistoryList({
   history,
   onOpen,
@@ -745,54 +734,16 @@ function HistoryList({
   return (
     <ul className='flex flex-col gap-2'>
       {history.entries.map((entry) => (
-        <li
-          key={entry.id}
-          className={clsx(
-            'rounded-box border border-base-content/10 p-2',
-            isEink && 'eink-bordered',
-          )}
-        >
-          <button
-            type='button'
-            data-testid='explainer-history-row'
-            onClick={() => onOpen(entry)}
-            className='block w-full text-start text-sm font-medium hover:text-base-content/80'
-          >
-            {firstLineOf(entry.text)}
-          </button>
-          <div className='mt-1 flex flex-wrap items-center gap-1 text-[11px] text-base-content/60'>
-            <span className='badge badge-outline badge-sm'>
-              {entry.bookTitle || entry.bookHash}
-            </span>
-            <span className='badge badge-outline badge-sm'>
-              {new Date(entry.createdAt).toLocaleDateString()}
-            </span>
-            {(entry.payload as ExplainerPayload)?.metadata?.format !== 'text' &&
-              BADGE_KEYS.filter((b) => b.visible(entry.payload as ExplainerPayload)).map((b) => (
-                <span key={b.key} className='badge badge-ghost badge-sm'>
-                  {_(b.key)}
-                </span>
-              ))}
-          </div>
-          <div className='mt-2 flex gap-2'>
-            <button
-              type='button'
-              data-testid='explainer-history-regenerate'
-              onClick={() => onRegenerate(entry)}
-              disabled={history.status === 'ready' && history.busyId === entry.id}
-              className='btn btn-xs btn-outline'
-            >
-              {_('Regenerate')}
-            </button>
-            <button
-              type='button'
-              data-testid='explainer-history-delete'
-              onClick={() => onDelete(entry)}
-              className='btn btn-xs btn-outline'
-            >
-              {_('Delete')}
-            </button>
-          </div>
+        <li key={entry.id}>
+          <ExplainerItemCard
+            entry={entry}
+            variant='compact'
+            isEink={isEink}
+            busy={history.status === 'ready' && history.busyId === entry.id}
+            onOpen={onOpen}
+            onRegenerate={onRegenerate}
+            onDelete={onDelete}
+          />
         </li>
       ))}
     </ul>
