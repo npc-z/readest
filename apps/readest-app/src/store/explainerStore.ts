@@ -12,6 +12,18 @@ export type ExplainerTier = 'notes' | 'grammar' | 'translation';
 export type ExplainerExpandedTiers = ReadonlySet<ExplainerTier>;
 
 /**
+ * Resolve a book hash the way entries are keyed in `handleExplainer`:
+ * `book.hash ?? bookKey.split('-')[0]`. The raw request fallback keeps a
+ * freshly-opened panel working before the book context resolves. Shared by the
+ * annotator entry point and the panel so the fallback chain can't drift.
+ */
+export const resolveBookHash = (
+  bookHash: string | undefined,
+  bookKey: string | undefined,
+  fallback?: string,
+): string => bookHash ?? bookKey?.split('-')[0] ?? fallback ?? '';
+
+/**
  * Single-point default expansion for the collapsible tiers. v0 opens only the
  * always-on Simple restatement, so none of the collapsible tiers start expanded.
  * Keep this as the one source the store/panel reads from, so a future

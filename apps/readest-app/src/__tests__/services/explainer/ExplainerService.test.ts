@@ -10,7 +10,7 @@ import {
   type ExplainerStore,
   type GetOrGenerateRequest,
 } from '@/services/explainer/ExplainerService';
-import type { ExplanationEntry } from '@/services/explainer/ExplainerDb';
+import type { ExplanationEntry, ListOptions } from '@/services/explainer/ExplainerDb';
 import { ExplainerServiceError } from '@/services/explainer/errors';
 import type {
   ExplainerAiGateway,
@@ -51,6 +51,13 @@ class FakeStore implements ExplainerStore {
         break;
       }
     }
+  }
+
+  async listByBook(bookHash: string, options: ListOptions): Promise<ExplanationEntry[]> {
+    return [...this.entries.values()]
+      .filter((e) => e.bookHash === bookHash)
+      .sort((a, b) => b.createdAt - a.createdAt)
+      .slice(options.offset, options.offset + options.limit);
   }
 }
 
@@ -185,6 +192,27 @@ describe('ExplainerService.getOrGenerate', () => {
     expect((entry.payload as ExplainerPayload).metadata.format).toBe('json');
     expect((entry.payload as ExplainerPayload).simple).toBe('A quick fox jumps over a lazy dog.');
     expect(entry.updatedAt).toBe(1000);
+  });
+
+  test('forwards the request thinking to the AI gateway', async () => {
+    const ai = new FakeAi(() => jsonResult(validPayload()));
+    const store = new FakeStore();
+    const service = makeService(ai, store);
+
+    await service.getOrGenerate(request({ thinking: 'high' }));
+
+    expect(ai.calls).toHaveLength(1);
+    expect(ai.calls[0]!.thinking).toBe('high');
+  });
+
+  test('defaults an omitted thinking to off before reaching the gateway', async () => {
+    const ai = new FakeAi(() => jsonResult(validPayload()));
+    const store = new FakeStore();
+    const service = makeService(ai, store);
+
+    await service.getOrGenerate(request());
+
+    expect(ai.calls[0]!.thinking).toBe('off');
   });
 
   test('does not resolve until the store write completes (write-before-return)', async () => {

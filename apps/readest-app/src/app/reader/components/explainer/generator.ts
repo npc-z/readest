@@ -1,6 +1,10 @@
 import type { AISettings } from '@/services/ai/types';
 import type { AppService } from '@/types/system';
-import { ExplainerDb, type ExplanationEntry } from '@/services/explainer/ExplainerDb';
+import {
+  ExplainerDb,
+  type ExplanationEntry,
+  type ListOptions,
+} from '@/services/explainer/ExplainerDb';
 import { createExplainerService } from '@/services/explainer/ExplainerService';
 import type { ExplainerOpenRequest } from '@/store/explainerStore';
 
@@ -13,6 +17,8 @@ export interface ExplainerGenerator {
   getOrGenerate(request: ExplainerOpenRequest): Promise<ExplanationEntry>;
   regenerate(request: ExplainerOpenRequest): Promise<ExplanationEntry>;
   deleteExplanation(id: string): Promise<void>;
+  /** List a book's explanations, newest first, for the panel history view. */
+  listByBook(bookHash: string, options: ListOptions): Promise<ExplanationEntry[]>;
 }
 
 /**

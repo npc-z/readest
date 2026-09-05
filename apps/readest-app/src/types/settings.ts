@@ -6,6 +6,7 @@ import { OPDSCatalog } from './opds';
 import { WebSource } from './webSource';
 import { ABSServer } from './audiobookshelf';
 import type { AISettings } from '@/services/ai/types';
+import type { ExplainerThinkingLevel } from '@/services/explainer/constants';
 import type { NotebookTab } from '@/store/notebookStore';
 import type { DictionarySettings, ImportedDictionary } from '@/services/dictionaries/types';
 
@@ -392,6 +393,22 @@ export interface HardwarePageTurnerSettings {
   };
 }
 
+/**
+ * Explainer (language learner) preferences. All fields optional so the
+ * reading side falls back to the per-use defaults (`sourceLang` → book
+ * metadata or 'auto', `nativeLang` → UI-language snapshot, `thinking` →
+ * 'off'). Device-local — deliberately NOT added to the settings sync
+ * whitelist, so it never crosses devices via cloud sync (ticket 06).
+ */
+export interface ExplainerSettings {
+  /** Preferred source (reading) language, e.g. 'en', 'zh'. Absent → book metadata / 'auto'. */
+  sourceLang?: string;
+  /** Preferred native (mother tongue) language. Absent → UI-language snapshot at explain time. */
+  nativeLang?: string;
+  /** Reasoning strength mapped to the active provider. Absent → 'off'. */
+  thinking?: ExplainerThinkingLevel;
+}
+
 export interface SystemSettings {
   version: number;
   migrationVersion: number;
@@ -542,6 +559,12 @@ export interface SystemSettings {
   icloud: ICloudSettings;
 
   aiSettings: AISettings;
+  /**
+   * Explainer (language learner) preferences. Optional by design: an absent
+   * value means "not configured", and the reading side resolves each field to
+   * its per-use default. Never synced across devices (ticket 06).
+   */
+  explainerSettings?: ExplainerSettings;
   /**
    * Per-device id used as the deviceId portion of every HLC this device
    * mints. Lazy-generated on first sync init via uuidv4 (mirrors
