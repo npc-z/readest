@@ -45,6 +45,7 @@
 
 ## Not yet specified
 
+- [讲解 AI 路由敏感参数治理（open）](tickets/10-explainer-ai-route-security.md): `/api/ai/explain` 当前把 `apiKey/provider/baseURL/model` 作为请求体输入（客户端 BYOK，任意端点 + 未登录可访问）；讨论后确认 key 在 body 本身非漏洞、服务端无用户 AI 配置存储（`aiSettings.*` 不在 settings 同步白名单），且 `sourceLang/nativeLang/thinking` 为读取上下文数据须留请求体。待定主路径 A（hosted 单一 key）/ B（服务端按用户配置）/ 仅先做"必须登录"，及收敛范围（只 explain 还是连 chat/embed）。延后处理。
 - 多版本留档与对比（覆盖式重新生成之外，将来可给"改前版本"留历史）。
 - 上限与目标水平（如 B1）用户可配置化。
 - 讲解与现有词典/翻译弹窗的联动跳转（如在词句帮助中点击跳 DictionaryPopup）。
