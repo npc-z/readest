@@ -121,4 +121,5 @@ Status: needs-triage
 - 最接近的既有先例是 `book_notes`：per-book、多行、LWW、`deleted_at`、`updated_at` 游标（`docker/volumes/db/init/schema.sql:83`，`pages/api/sync.ts:874`）。
 - 服务端迁移目录 glob 挂载（`docker/compose.yaml:12-17`），新增迁移文件不需要 compose 改动。
 - 本 spec 的软删只针对讲解条目；`.scratch/explainer/issues/06-storage-layer.md` 的"删书不级联"不变。若将来把 `deleteByBook` 接到"删书清理"，它也必须写墓碑才能跨设备生效。
+- **与"删除本地数据库"的冲突**：讲解库页的重置动作会关闭连接并物理删除 `explainer.db`（`apps/readest-app/src/app/library/explainer/page.tsx`），下次打开由迁移重建表。同步落地后云端行会在下一次同步被重新拉回；若重置的意图包含云端，需要同时删除服务端行，或在 UI 明确"仅重置本机、下次同步会恢复"。01 的软删设计不覆盖这种整库删除。
 - 相关代码入口：`apps/readest-app/src/services/explainer/`（本地库与服务）、`apps/readest-app/src/libs/sync.ts`（客户端同步客户端）、`apps/readest-app/src/pages/api/sync.ts`（服务端 push/pull）、`docker/volumes/db/migrations/`（服务端 schema）。

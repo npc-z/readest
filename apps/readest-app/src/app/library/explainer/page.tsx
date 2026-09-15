@@ -3,7 +3,7 @@
 import clsx from 'clsx';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { LuGraduationCap } from 'react-icons/lu';
+import { LuGraduationCap, LuTrash2 } from 'react-icons/lu';
 
 import { useEnv } from '@/context/EnvContext';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -21,7 +21,7 @@ import { useSettingsStore } from '@/store/settingsStore';
 import { navigateToLibrary, navigateToReader } from '@/utils/nav';
 import { eventDispatcher } from '@/utils/event';
 import ExplainerItemCard from '@/app/reader/components/explainer/ExplainerItemCard';
-import { createExplainerGenerator } from '@/app/reader/components/explainer/generator';
+import { createExplainerGeneratorFromStore } from '@/app/reader/components/explainer/generator';
 
 const PAGE_SIZE = 20;
 
@@ -84,6 +84,10 @@ export default function ExplainerLibraryPage() {
   const [offset, setOffset] = useState(0);
   const [hasMore, setHasMore] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [resetting, setResetting] = useState(false);
+  // Bumped after a database reset so the memos below rebuild a fresh
+  // ExplainerDb; its first query re-runs migrations and recreates the table.
+  const [dbEpoch, setDbEpoch] = useState(0);
   // Guards against a stale query response overwriting a newer one (typing races).
   const loadSeq = useRef(0);
 
@@ -94,10 +98,13 @@ export default function ExplainerLibraryPage() {
     typeof document !== 'undefined' &&
     document.documentElement.getAttribute('data-eink') === 'true';
 
-  const db = useMemo(() => (appService ? ExplainerDb.open(appService) : null), [appService]);
+  const db = useMemo(
+    () => (appService ? ExplainerDb.open(appService) : null),
+    [appService, dbEpoch],
+  );
   const gen = useMemo(
-    () => (appService ? createExplainerGenerator(appService, aiSettings) : null),
-    [appService, aiSettings],
+    () => (db ? createExplainerGeneratorFromStore(db, aiSettings) : null),
+    [db, aiSettings],
   );
 
   const load = useCallback(
@@ -201,6 +208,44 @@ export default function ExplainerLibraryPage() {
     [gen, load, _],
   );
 
+  const handleResetDatabase = useCallback(async () => {
+    if (!appService || !db) return;
+    if (
+      !window.confirm(
+        _(
+          'Delete the local explanation database? All local explanations on this device will be lost.',
+        ),
+      )
+    ) {
+      return;
+    }
+    setResetting(true);
+    try {
+      // Close the page's single connection before removing the file. The next
+      // open re-runs the migration and recreates the table from the current
+      // DDL — a row-level delete would leave a stale schema in place.
+      await db.close();
+      await appService.deleteDatabase('explainer.db', 'Data');
+      // Drop any active search/filter; the rebuilt db starts empty.
+      setQuery('');
+      setBookFilter('');
+      setDbEpoch((n) => n + 1);
+      eventDispatcher.dispatch('toast', {
+        type: 'success',
+        message: _('Local explanation database deleted.'),
+        timeout: 3000,
+      });
+    } catch (err) {
+      eventDispatcher.dispatch('toast', {
+        type: 'error',
+        message: actionFailedMessage(_, EXPLAINER_ACTION_KEYS.resetFailed, errorCodeOf(err)),
+        timeout: 3500,
+      });
+    } finally {
+      setResetting(false);
+    }
+  }, [appService, db, _]);
+
   const handleOpenReader = useCallback(
     (entry: ExplanationEntry) => {
       try {
@@ -267,11 +312,26 @@ export default function ExplainerLibraryPage() {
             {_('Explanations')}
           </h1>
         </div>
-        {!aiConfigured && (
-          <span data-testid='explainer-library-ai-off' className='text-xs text-base-content/60'>
-            {_('Explain needs an AI provider. Configure one to get started.')}
-          </span>
-        )}
+        <div className='flex items-center gap-3'>
+          {!aiConfigured && (
+            <span data-testid='explainer-library-ai-off' className='text-xs text-base-content/60'>
+              {_('Explain needs an AI provider. Configure one to get started.')}
+            </span>
+          )}
+          {!isEmpty && (
+            <button
+              type='button'
+              data-testid='explainer-library-reset-db'
+              onClick={() => void handleResetDatabase()}
+              disabled={resetting}
+              title={_('Delete the local explanation database and recreate it from scratch.')}
+              className='btn btn-ghost btn-sm gap-1'
+            >
+              <LuTrash2 className='size-4 text-error' />
+              {_('Delete local database')}
+            </button>
+          )}
+        </div>
       </header>
 
       <div className='flex flex-wrap items-center gap-2 border-b border-base-content/10 px-4 py-2'>

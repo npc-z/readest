@@ -11,6 +11,8 @@ const h = vi.hoisted(() => ({
   listBooks: vi.fn(),
   regenerate: vi.fn(),
   deleteExplanation: vi.fn(),
+  close: vi.fn(),
+  deleteDatabase: vi.fn(),
   navigateToReader: vi.fn(),
   navigateToLibrary: vi.fn(),
   push: vi.fn(),
@@ -19,16 +21,24 @@ const h = vi.hoisted(() => ({
   t: (key: string) => key,
 }));
 
-vi.mock('@/context/EnvContext', () => ({ useEnv: () => ({ appService: {} }) }));
+vi.mock('@/context/EnvContext', () => {
+  // Stable identity: the page memoizes its ExplainerDb on `appService`, so a
+  // fresh object per render would rebuild the db (and re-run the load effect).
+  const appService = { deleteDatabase: h.deleteDatabase };
+  return { useEnv: () => ({ appService }) };
+});
 vi.mock('@/hooks/useTranslation', () => ({ useTranslation: () => h.t }));
 vi.mock('@/store/settingsStore', () => ({
   useSettingsStore: () => ({ settings: { aiSettings: { enabled: true }, explainerSettings: {} } }),
 }));
 vi.mock('@/services/explainer/ExplainerDb', () => ({
-  ExplainerDb: { open: () => h },
+  // A fresh instance per open models the page rebuilding its db handle after a
+  // reset; the spies themselves stay shared through `h`.
+  ExplainerDb: { open: () => ({ ...h }) },
 }));
 vi.mock('@/app/reader/components/explainer/generator', () => ({
   createExplainerGenerator: () => h,
+  createExplainerGeneratorFromStore: () => h,
 }));
 vi.mock('@/services/explainer/gateway', () => ({
   isAiConfigured: () => true,
@@ -74,6 +84,8 @@ beforeEach(() => {
   h.listBooks.mockReset().mockResolvedValue([]);
   h.regenerate.mockReset();
   h.deleteExplanation.mockReset();
+  h.close.mockReset();
+  h.deleteDatabase.mockReset();
   h.navigateToReader.mockReset();
   h.navigateToLibrary.mockReset();
   h.push.mockReset();
@@ -132,6 +144,35 @@ describe('ExplainerLibraryPage', () => {
 
     fireEvent.click(screen.getByTestId('explainer-card-delete'));
     await waitFor(() => expect(h.deleteExplanation).toHaveBeenCalledWith('1'));
+    confirmSpy.mockRestore();
+  });
+
+  it('deletes the local database after confirmation and reloads to the empty state', async () => {
+    h.listAll.mockResolvedValueOnce([entry('1')]).mockResolvedValue([]);
+    h.close.mockResolvedValue(undefined);
+    h.deleteDatabase.mockResolvedValue(undefined);
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    render(<ExplainerLibraryPage />);
+    await waitFor(() => expect(screen.getByText('Passage 1 first line.')).toBeTruthy());
+
+    fireEvent.click(screen.getByTestId('explainer-library-reset-db'));
+
+    await waitFor(() => expect(h.close).toHaveBeenCalledTimes(1));
+    expect(h.deleteDatabase).toHaveBeenCalledWith('explainer.db', 'Data');
+    await waitFor(() => expect(screen.getByTestId('explainer-library-empty')).toBeTruthy());
+    confirmSpy.mockRestore();
+  });
+
+  it('does not delete the local database when the confirmation is dismissed', async () => {
+    h.listAll.mockResolvedValue([entry('1')]);
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    render(<ExplainerLibraryPage />);
+    await waitFor(() => expect(screen.getByText('Passage 1 first line.')).toBeTruthy());
+
+    fireEvent.click(screen.getByTestId('explainer-library-reset-db'));
+
+    expect(h.close).not.toHaveBeenCalled();
+    expect(h.deleteDatabase).not.toHaveBeenCalled();
     confirmSpy.mockRestore();
   });
 

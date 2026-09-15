@@ -64,6 +64,7 @@ export const EXPLAINER_ACTION_KEYS = {
   loadMoreFailed: _('Could not load more.'),
   regenerateFailed: _('Regenerate failed.'),
   deleteFailed: _('Delete failed.'),
+  resetFailed: _('Reset failed.'),
   openBookFailed: _('Could not open the book.'),
   loadExplanationsFailed: _('Could not load explanations.'),
 } as const;

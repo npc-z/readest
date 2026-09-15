@@ -5,7 +5,7 @@ import {
   type ExplanationEntry,
   type ListOptions,
 } from '@/services/explainer/ExplainerDb';
-import { createExplainerService } from '@/services/explainer/ExplainerService';
+import { createExplainerService, type ExplainerStore } from '@/services/explainer/ExplainerService';
 import type { ExplainerOpenRequest } from '@/store/explainerStore';
 
 /**
@@ -33,3 +33,14 @@ export const createExplainerGenerator = (
   if (!appService) return null;
   return createExplainerService({ store: ExplainerDb.open(appService), settings: aiSettings });
 };
+
+/**
+ * Build the generator over an already-open store. The library page owns one
+ * {@link ExplainerDb} shared by reads, regenerate, and delete, so its "delete
+ * local database" action can close the single connection before removing the
+ * file instead of leaking a second one.
+ */
+export const createExplainerGeneratorFromStore = (
+  store: ExplainerStore,
+  aiSettings: AISettings,
+): ExplainerGenerator => createExplainerService({ store, settings: aiSettings });
