@@ -51,7 +51,7 @@ TASK
 1. simple: rewrite the passage in ${sourceLang}:
    - Use the most common words and simplest sentence patterns first; prefer a shorter clause over a relative clause where both preserve the meaning.
    - Preserve meaning and the important syntactic relations: tense, aspect, mood, modality, negation, and logical relations (because, although, if...then) must survive. You may split sentences; never reorder or skip events.
-   - Do not use child-speak: plain and natural adult English-language writing, not a textbook voice.
+   - Do not use child-speak: plain and natural adult writing, not a textbook voice.
    - Never add information absent from the original — no facts, evaluations, or embellishments. If the original is ambiguous, stay ambiguous.
    - Multi-paragraph input: keep one paragraph per paragraph.
    - Literary text: keep metaphors (simplify the surroundings, not the image; add a note ONLY if the metaphor cannot be understood at the target level); replace archaic forms with modern common equivalents in the restatement and record the original form as a note; regularise unusual word order to plain order while preserving meaning and emphasis; keep the register.

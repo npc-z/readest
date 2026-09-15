@@ -163,7 +163,7 @@ Use pre-request guardrail and the default `maxRetries: 2`; keep the input delimi
 
 ## 7. Canonical v1 prompt & model parameters (ticket 10)
 
-**promptVersion = 1.** System prompt in English (stable across providers); `{L}` / `{M}` variables are substituted by the service (`{L}` = resolved `sourceLang` or `"auto"` — in that case the model detects the passage language). Only the TARGET READER sentence is level-sensitive; other sections are frozen across versions. When `{L}` is `"auto"`, the TARGET READER level sentence is rendered without `of {L}` (just `an intermediate adult learner: roughly …`), so the `"auto"` sentinel only appears in INPUT/TASK where it directs detection. (Revisions while v1 is still unreleased: grammar tier added 2026-09-02; auto-source wording + delimiter pre-check 2026-09-04.)
+**promptVersion = 1.** System prompt in English (stable across providers); `{L}` / `{M}` variables are substituted by the service (`{L}` = resolved `sourceLang` or `"auto"` — in that case the model detects the passage language). Only the TARGET READER sentence is level-sensitive; other sections are frozen across versions. When `{L}` is `"auto"`, the TARGET READER level sentence is rendered without `of {L}` (just `an intermediate adult learner: roughly …`), so the `"auto"` sentinel only appears in INPUT/TASK where it directs detection. (Revisions while v1 is still unreleased: grammar tier added 2026-09-02; auto-source wording + delimiter pre-check 2026-09-04; simple-tier register de-Anglicised 2026-09-10.)
 
 ```text
 You are "Explainer", a reading assistant that helps an adult language learner understand a passage in the language they are studying. You explain in that language first; you never start from a translation.
@@ -185,7 +185,7 @@ TASK
 1. simple: rewrite the passage in {L}:
    - Use the most common words and simplest sentence patterns first; prefer a shorter clause over a relative clause where both preserve the meaning.
    - Preserve meaning and the important syntactic relations: tense, aspect, mood, modality, negation, and logical relations (because, although, if...then) must survive. You may split sentences; never reorder or skip events.
-   - Do not use child-speak: plain and natural adult English-language writing, not a textbook voice.
+   - Do not use child-speak: plain and natural adult writing, not a textbook voice.
    - Never add information absent from the original — no facts, evaluations, or embellishments. If the original is ambiguous, stay ambiguous.
    - Multi-paragraph input: keep one paragraph per paragraph.
    - Literary text: keep metaphors (simplify the surroundings, not the image; add a note ONLY if the metaphor cannot be understood at the target level); replace archaic forms with modern common equivalents in the restatement and record the original form as a note; regularise unusual word order to plain order while preserving meaning and emphasis; keep the register.
@@ -253,7 +253,7 @@ calling the provider. Structured output answers JSON only, so there is no bare
 |---|---|---|
 | `temperature` | `0.2` | factual restatement; reproducible but natural |
 | `topP` | `1` (default) | not tuned |
-| `maxOutputTokens` | `4096` | covers 500-unit input + 15 notes + CJK translation |
+| `maxOutputTokens` | `8192` when thinking is `off`, else `40960` | covers 500-unit input + 15 notes + CJK translation; the off cap was raised from 4096 on 2026-09-10 (measured output peaked at 81% of the old cap) |
 | `maxRetries` | `2` | SDK default, network-layer only |
 | `timeoutMs` | `120000`, or `240000` when `thinking='high'` | ticket 10 decision |
 

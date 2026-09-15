@@ -1,10 +1,10 @@
 /**
  * Language resolution for the explainer panel (ticket 06).
  *
- * The cache key stays `(bookHash, textHash, nativeLang)`, so only `nativeLang`
- * affects which cached explanation a passage hits. `sourceLang` is a generation
- * hint: when it resolves to 'auto' the model detects the source itself and
- * records the result in `payload.metadata.sourceLang`.
+ * The cache key is `(bookHash, textHash, sourceLang, nativeLang)`, so both
+ * languages affect which cached explanation a passage hits. `sourceLang` is
+ * also a generation hint: when it resolves to 'auto' the model detects the
+ * source itself and records the result in `payload.metadata.sourceLang`.
  */
 
 /** Resolved languages handed to the panel and the generation request. */

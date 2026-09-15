@@ -2,7 +2,7 @@
 
 ## Destination
 
-一份关于"是否、以及如何收敛讲解的输出预算"的**决策**：既降低输出 token 成本（实测占账单 68–85%），也消除 thinking-off 上限（4,096）被触顶截断的风险。允许结论是"维持现状，不做改动"。
+一份关于"是否、以及如何收敛讲解的输出预算"的**决策**：既降低输出 token 成本（实测占账单 68–85%），也消除 thinking-off 上限被触顶截断的风险（旧上限 4,096 已于 2026-09-10 抬到 8,192，见 Decisions）。允许结论是"维持现状，不做改动"。
 
 ## Notes
 
@@ -22,8 +22,8 @@
 ### 已查明的事实（来自原图，勿重复测量）
 
 - 实测输出：**2,294 / 2,699 / 2,874 / 3,309 tokens，均值 ≈ 2,794**（4 次真实调用，500 词选段）。
-- `explainerMaxOutputTokens`：thinking **off → 4,096**；low/medium/high → **40,960**（`constants.ts:29,32`）。
-- **其中一次输出 3,309 = thinking-off 上限的 81%** → 触顶截断风险真实存在，不是理论担忧。
+- `explainerMaxOutputTokens`：thinking **off → 8,192**（2026-09-10 从 4,096 上调）；low/medium/high → **40,960**（`constants.ts:29,36`）。
+- **其中一次输出 3,309 = 旧上限 4,096 的 81%** → 触顶截断风险真实存在，不是理论担忧（上限抬到 8,192 后余量充足）。
 - 截断会打断 JSON → 落到 salvage 兜底路径 → 用户看到的是**讲解质量变差**，而非账单变化。
 - 输出占账单 **68.2%**（DeepSeek 价格比 1.5×）；同 token 数在 4× 价格比的 provider（Gemini 2.5 Flash-Lite / OpenAI）上约 **85%**。
 - system prompt 1,219 tokens；其中 **TASK 段 710（58%）、OUTPUT FORMAT 235**。
@@ -32,6 +32,8 @@
 ## Decisions so far
 
 <!-- 闭合的 ticket：一行 name + 一句结论摘要 + 链接 -->
+
+- **上限抬升（2026-09-10 实现，票 01 的"防事故"分支）**：thinking-off 输出上限 **4,096 → 8,192**（`constants.ts` 的 `maxOutputTokensOff`，web 路由 / Tauri 直连 / 面板共用同一取值）；thinking ≠ off 维持 40,960。依据：实测均值 ≈ 2,794、峰值 3,309 已占旧上限 81%，余量不足会触发 JSON 截断 → salvage 兜底。票 01 的其余问题（thinking 档位敞口、prompt 瘦身、质量验收、优先级）仍待决。
 
 ## Not yet specified
 

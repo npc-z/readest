@@ -202,7 +202,7 @@ describe('POST /api/ai/explain', () => {
     });
     expect(call.providerOptions.openrouter).not.toHaveProperty('reasoningEffort');
     // off is a plain completion: keep the output/time ceiling tight.
-    expect(call.maxOutputTokens).toBe(4096);
+    expect(call.maxOutputTokens).toBe(8192);
   });
 
   it('rejects an unwhitelisted provider instead of falling into the proxy path', async () => {

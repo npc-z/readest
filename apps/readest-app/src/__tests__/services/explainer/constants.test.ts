@@ -9,6 +9,7 @@ import {
   EXPLAINER_PROMPT_VERSION,
   EXPLAINER_THINKING_LEVELS,
   EXPLAINER_TIMEOUTS,
+  explainerCacheKey,
   explainerMaxOutputTokens,
   explainerTimeoutMs,
 } from '@/services/explainer/constants';
@@ -27,16 +28,23 @@ describe('explainer constants', () => {
     expect(EXPLAINER_GENERATION_PARAMS).toEqual({
       temperature: 0.2,
       maxOutputTokens: 40960,
-      maxOutputTokensOff: 4096,
+      maxOutputTokensOff: 8192,
       maxRetries: 2,
     });
   });
 
   test('output budget is thinking-aware: off stays tight, reasoning gets the large cap', () => {
-    expect(explainerMaxOutputTokens('off')).toBe(4096);
+    expect(explainerMaxOutputTokens('off')).toBe(8192);
     expect(explainerMaxOutputTokens('low')).toBe(40960);
     expect(explainerMaxOutputTokens('medium')).toBe(40960);
     expect(explainerMaxOutputTokens('high')).toBe(40960);
+  });
+
+  test('cache key carries the source language so switching it is a miss', () => {
+    expect(explainerCacheKey('book-a', 'hash-1', 'en', 'zh-CN')).toBe('book-a:hash-1:en:zh-CN');
+    expect(explainerCacheKey('book-a', 'hash-1', 'fr', 'zh-CN')).not.toBe(
+      explainerCacheKey('book-a', 'hash-1', 'en', 'zh-CN'),
+    );
   });
 
   test('default base URL is the single shared OpenRouter constant', () => {

@@ -212,8 +212,8 @@ const migrations: Record<SchemaType, MigrationEntry[]> = {
     },
   ],
   // Explanations cache for the explainer feature: one row per
-  // (book_hash, text_hash, native_lang) — the same passage in the same
-  // order of the learner's mother tongue hits the same row, so
+  // (book_hash, text_hash, source_lang, native_lang) — the same passage in the
+  // same order of the learner's mother tongue hits the same row, so
   // "regenerate" is an in-place overwrite that swaps the content
   // (payload/prompt_version/cfi/updated_at) and keeps the row's id and
   // created_at from first creation. book_title is snapshotted so the
@@ -237,7 +237,7 @@ const migrations: Record<SchemaType, MigrationEntry[]> = {
           prompt_version INTEGER NOT NULL,
           created_at INTEGER NOT NULL,
           updated_at INTEGER NOT NULL,
-          UNIQUE(book_hash, text_hash, native_lang)
+          UNIQUE(book_hash, text_hash, source_lang, native_lang)
         );
 
         CREATE INDEX IF NOT EXISTS idx_explanations_book_created

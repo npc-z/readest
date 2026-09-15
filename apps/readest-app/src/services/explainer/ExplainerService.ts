@@ -25,6 +25,7 @@ export interface ExplainerStore {
   getByKey(
     bookHash: string,
     textHash: string,
+    sourceLang: string,
     nativeLang: string,
   ): Promise<ExplanationEntry | null>;
   upsert(entry: ExplanationEntry): Promise<void>;
@@ -88,7 +89,12 @@ export class ExplainerService {
     const { text, hash, truncated, key } = await this.prepareRequest(request);
 
     // 3. Cache hit — no AI call, no write.
-    const cached = await this.store.getByKey(request.bookHash, hash, request.nativeLang);
+    const cached = await this.store.getByKey(
+      request.bookHash,
+      hash,
+      request.sourceLang,
+      request.nativeLang,
+    );
     if (cached) return this.withTruncated(cached, truncated);
 
     // 4. Concurrent same-key request — share the in-flight promise.
@@ -118,7 +124,12 @@ export class ExplainerService {
     // Reuse the persisted row id: upsert keeps the first-created id (`ON CONFLICT
     // ... DO UPDATE` doesn't touch `id`), so the panel must hold the same id a
     // later delete by id can remove. Reading by key gives us that id.
-    const existing = await this.store.getByKey(request.bookHash, hash, request.nativeLang);
+    const existing = await this.store.getByKey(
+      request.bookHash,
+      hash,
+      request.sourceLang,
+      request.nativeLang,
+    );
     return this.generateAndStore({ ...request, text }, hash, truncated, existing?.id);
   }
 
@@ -161,7 +172,7 @@ export class ExplainerService {
       text,
       hash,
       truncated,
-      key: explainerCacheKey(request.bookHash, hash, request.nativeLang),
+      key: explainerCacheKey(request.bookHash, hash, request.sourceLang, request.nativeLang),
     };
   }
 

@@ -82,7 +82,8 @@ const toEntry = (row: ExplanationRow): ExplanationEntry => ({
 const escapeLike = (value: string): string => value.replace(/[\\%_]/g, (char) => `\\${char}`);
 
 /**
- * Persists generated explanations keyed by (bookHash, textHash, nativeLang).
+ * Persists generated explanations keyed by (bookHash, textHash, sourceLang,
+ * nativeLang).
  *
  * Open either through the app service (lazily, migrations handled by the
  * platform) or with an already-migrated database for tests.
@@ -114,14 +115,15 @@ export class ExplainerDb {
   async getByKey(
     bookHash: string,
     textHash: string,
+    sourceLang: string,
     nativeLang: string,
   ): Promise<ExplanationEntry | null> {
     return this.withDb(async (database) => {
       const rows = await database.select<ExplanationRow>(
         `SELECT ${ENTRY_COLUMNS}
          FROM explanations
-         WHERE book_hash = ? AND text_hash = ? AND native_lang = ?`,
-        [bookHash, textHash, nativeLang],
+         WHERE book_hash = ? AND text_hash = ? AND source_lang = ? AND native_lang = ?`,
+        [bookHash, textHash, sourceLang, nativeLang],
       );
       return rows[0] ? toEntry(rows[0]) : null;
     });
@@ -135,7 +137,7 @@ export class ExplainerDb {
            cfi, payload, prompt_version, created_at, updated_at
          )
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-         ON CONFLICT(book_hash, text_hash, native_lang) DO UPDATE SET
+         ON CONFLICT(book_hash, text_hash, source_lang, native_lang) DO UPDATE SET
            book_title = excluded.book_title,
            text = excluded.text,
            source_lang = excluded.source_lang,

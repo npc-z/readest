@@ -65,7 +65,7 @@ const NATIVE_LANG_RESET_VALUE = '';
 const HISTORY_PAGE_SIZE = 50;
 
 const entryKeyOf = (entry: ExplanationEntry): string =>
-  explainerCacheKey(entry.bookHash, entry.textHash, entry.nativeLang);
+  explainerCacheKey(entry.bookHash, entry.textHash, entry.sourceLang, entry.nativeLang);
 
 const errorCodeOf = (error: unknown): ExplainerErrorCode => {
   if (typeof error === 'object' && error !== null && 'code' in error) {
@@ -256,8 +256,8 @@ export default function ExplainerPanel({
   // Apply the panel's current resolved languages + thinking to a request so
   // Regenerate/Retry after changing a header setting use fresh values instead of
   // the open-time snapshot captured by `handleExplainer` (the store request is
-  // only set once per selection). The cache key follows `nativeLang`, so a
-  // changed native language naturally creates a fresh key/entry.
+  // only set once per selection). The cache key follows `sourceLang` and
+  // `nativeLang`, so a changed language naturally creates a fresh key/entry.
   const withCurrentSettings = useCallback(
     (base: ExplainerOpenRequest): ExplainerOpenRequest => ({
       ...base,

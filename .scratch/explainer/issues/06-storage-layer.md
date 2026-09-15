@@ -46,3 +46,5 @@ CREATE INDEX IF NOT EXISTS idx_explainer_book_created
 - **生命周期**：条目创建即完整（生成成功→先写后展示，03 承诺）；`created_at/updated_at` 写入端填；单条语句无需事务；不做强制 checkpoint（写入频率低）。
 
 Blocked by: 02
+
+> **2026-09-10 修订**：缓存键补齐 `sourceLang`，唯一键由 `(book_hash, text_hash, native_lang)` 改为 `(book_hash, text_hash, source_lang, native_lang)`——原键会在切换源语言时静默复用旧语言的条目。该 schema 尚未发布，故**不新增迁移**，直接在原迁移 `2026090301_explainer` 的 DDL 中改唯一键；上方三列唯一键为历史记录，已有的 v1 本地库需手动删除重建。

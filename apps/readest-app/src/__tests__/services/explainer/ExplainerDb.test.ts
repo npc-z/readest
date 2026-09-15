@@ -36,23 +36,39 @@ describe('ExplainerDb', () => {
     const entry = makeEntry();
     await db.upsert(entry);
 
-    await expect(db.getByKey('book-a', 'hash-1', 'zh-CN')).resolves.toEqual(entry);
+    await expect(db.getByKey('book-a', 'hash-1', 'en', 'zh-CN')).resolves.toEqual(entry);
     await db.close();
   });
 
   test('getByKey returns null for an unknown key', async () => {
     const db = ExplainerDb.from(await openDb());
-    await expect(db.getByKey('book-a', 'hash-1', 'zh-CN')).resolves.toBeNull();
+    await expect(db.getByKey('book-a', 'hash-1', 'en', 'zh-CN')).resolves.toBeNull();
     await db.close();
   });
 
-  test('getByKey requires all three key parts to match', async () => {
+  test('getByKey requires all four key parts to match', async () => {
     const db = ExplainerDb.from(await openDb());
     await db.upsert(makeEntry());
 
-    await expect(db.getByKey('book-a', 'hash-1', 'en')).resolves.toBeNull();
-    await expect(db.getByKey('book-a', 'other-hash', 'zh-CN')).resolves.toBeNull();
-    await expect(db.getByKey('other-book', 'hash-1', 'zh-CN')).resolves.toBeNull();
+    await expect(db.getByKey('book-a', 'hash-1', 'fr', 'zh-CN')).resolves.toBeNull();
+    await expect(db.getByKey('book-a', 'other-hash', 'en', 'zh-CN')).resolves.toBeNull();
+    await expect(db.getByKey('other-book', 'hash-1', 'en', 'zh-CN')).resolves.toBeNull();
+    await expect(db.getByKey('book-a', 'hash-1', 'en', 'en')).resolves.toBeNull();
+    await db.close();
+  });
+
+  test('keeps separate rows per source language for the same passage and native language', async () => {
+    const db = ExplainerDb.from(await openDb());
+    await db.upsert(makeEntry({ id: 'en-row', sourceLang: 'en' }));
+    await db.upsert(makeEntry({ id: 'fr-row', sourceLang: 'fr' }));
+
+    await expect(db.getByKey('book-a', 'hash-1', 'en', 'zh-CN')).resolves.toMatchObject({
+      id: 'en-row',
+    });
+    await expect(db.getByKey('book-a', 'hash-1', 'fr', 'zh-CN')).resolves.toMatchObject({
+      id: 'fr-row',
+    });
+    await expect(db.listAll({ limit: 10, offset: 0 })).resolves.toHaveLength(2);
     await db.close();
   });
 
@@ -87,7 +103,7 @@ describe('ExplainerDb', () => {
     await db.upsert(entry);
     await db.delete(entry.id);
 
-    await expect(db.getByKey('book-a', 'hash-1', 'zh-CN')).resolves.toBeNull();
+    await expect(db.getByKey('book-a', 'hash-1', 'en', 'zh-CN')).resolves.toBeNull();
     await db.close();
   });
 

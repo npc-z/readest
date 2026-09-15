@@ -43,6 +43,16 @@ describe('explainer prompt builder', () => {
     expect(prompt).toContain('The passage is in auto.');
   });
 
+  test('keeps the simple-tier register instruction language-neutral', () => {
+    const english = buildExplainerSystemPrompt({ sourceLang: 'en', nativeLang: 'zh-CN' });
+    const french = buildExplainerSystemPrompt({ sourceLang: 'fr', nativeLang: 'zh-CN' });
+
+    for (const prompt of [english, french]) {
+      expect(prompt).toContain('plain and natural adult writing');
+      expect(prompt).not.toContain('English-language writing');
+    }
+  });
+
   test('injects the prompt version constant into the output format', () => {
     const prompt = buildExplainerSystemPrompt({ sourceLang: 'en', nativeLang: 'en' });
 

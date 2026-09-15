@@ -24,12 +24,14 @@ export const EXPLAINER_GENERATION_PARAMS = {
   /**
    * Output budget for reasoning-enabled calls (thinking ≠ 'off'): a reasoning
    * chain can consume a large share of `max_tokens` before the plain answer, so
-   * it needs 10× the ceiling (verified against DeepSeek reasoning models).
+   * it keeps a much larger ceiling (verified against DeepSeek reasoning models).
    */
   maxOutputTokens: 40_960,
   /** Budget for plain completions (thinking === 'off'): an explanation is a
-   *  small completion, so keep the cost/time ceiling tight. */
-  maxOutputTokensOff: 4_096,
+   *  small completion, so keep the cost/time ceiling tight. Raised from 4,096
+   *  after measured completions reached 81% of it, leaving too little headroom
+   *  for longer passages before JSON truncation. */
+  maxOutputTokensOff: 8_192,
   /** SDK retries: network layer only. */
   maxRetries: 2,
 } as const;
@@ -83,9 +85,15 @@ export const EXPLAINER_ERROR_CODES = [
 export type ExplainerErrorCode = (typeof EXPLAINER_ERROR_CODES)[number];
 
 /**
- * Cache key format `(bookHash, textHash, nativeLang)` shared by the service
- * layer, the panel, and the in-memory test stores so the delimiter can never
- * drift in one place.
+ * Cache key format `(bookHash, textHash, sourceLang, nativeLang)` shared by the
+ * service layer, the panel, and the in-memory test stores so the delimiter can
+ * never drift in one place. `sourceLang` is part of the key because it changes
+ * the generated explanation (and the prompt), so switching it must not reuse
+ * the previous language's cached entry.
  */
-export const explainerCacheKey = (bookHash: string, textHash: string, nativeLang: string): string =>
-  `${bookHash}:${textHash}:${nativeLang}`;
+export const explainerCacheKey = (
+  bookHash: string,
+  textHash: string,
+  sourceLang: string,
+  nativeLang: string,
+): string => `${bookHash}:${textHash}:${sourceLang}:${nativeLang}`;

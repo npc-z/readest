@@ -11,7 +11,7 @@
 | 其中随 L/M 变化的部分 | **仅 39 字符 / 19 tokens（1.6%）**——`${sourceLang}` 出现在 7 处（`prompts.ts` 41,47,51,63,64,65,70），`${nativeLang}` 5 处（47,65,66,71,99） |
 | 500 词英文选段 | **656 tokens**（含 `<INPUT_TEXT>` 包裹 665） |
 | 单次请求输入 | system 1,219（**64.7%**）+ 选段 665（35.3%）= **1,884 tokens** |
-| 输出上限 | thinking **off → 4,096**；low/medium/high → **40,960**（`constants.ts:29,32`） |
+| 输出上限 | thinking **off → 8,192**（2026-09-10 从 4,096 上调）；low/medium/high → **40,960**（`constants.ts:29,36`） |
 | 其它参数 | temperature 0.2；maxRetries 2；超时 120s（thinking=high 240s） |
 
 **结论：system prompt 对同一语言组合已 98.4% 逐字节稳定**，且作为 `system` 消息发在选段之前。前缀稳定这一条**已经成立，零代码改动**。
@@ -65,7 +65,7 @@ AI SDK v6 形态：`providerOptions:{<namespace>:{...}}`，namespace = `model.pr
 
 ## 6. 杠杆排序（真正的结论）
 
-1. **输出侧最大**：thinking≠off 会把上限从 4,096 抬到 **40,960**；一次最坏情况的 thinking 调用 = $0.0164 输出 = **典型调用的 16 倍**。
+1. **输出侧最大**：开启 thinking 会把上限从 off 档的 8,192 抬到 **40,960**；一次最坏情况的 thinking 调用 = $0.0164 输出 = **典型调用的 16 倍**。
 2. **已实现的 DB + 并发缓存**：重复选段 = $0，100% 节省。
 3. **prompt 缓存排最后**，且只在门槛满足的通路上有效：OpenAI ≥1,024 ✓（1,219 刚过）、Anthropic ≥1,024 ✓、**DeepSeek ≥64 ✓ 且自动、零代码**。可达集合里 DeepSeek 缓存表现最好。
 

@@ -32,6 +32,7 @@
 - [实测缓存命中、真实输出用量与 DB 缓存命中率](issues/02-measure-cache-hits.md): DeepSeek 实测 **缓存确实命中且零代码改动**——同 system、换选段时 **1,024/1,884 = 54.4% 输入命中**（对照：换 `nativeLang` 即归零，证明严格按前缀判定）；输入成本降 **51.1%**、等输出口径总成本降 **~16%**；**真实输出 2,294–3,309 tokens（均值 ~2,794），比票 01 估算高 40%**，其中一次已达 thinking-off 上限 4,096 的 **81%**（触顶截断风险 → 转 [输出预算收敛与截断风险治理](../explainer-output-budget/issues/01-output-budget.md)）；实测 `prompt_tokens=1,884` 与票 01 的 BPE 预测**逐 token 吻合**。结论：**缓存是小杠杆（12–19%），不是数量级节省**。未测：DB 缓存命中率、两条通路一致性、官方价目表（沙箱取不到）。
 - [降本门槛与优先级](issues/03-cost-bar-and-priority.md): **未独立解析，被最终决策吸收**——缓存部分结论为"不做"，输出侧部分迁往 `../explainer-output-budget/`。保留文件仅为记录该问题曾被提出及消解方式。
 - [最终决策：做 / 不做 / 做什么](issues/05-final-decision.md): **决策：prompt 缓存不做，无实现工作。** 初始问题"复用会话能否命中缓存省钱"的答案：**能命中，但不需要"复用会话"，且不值得为它做任何事**。决策在两条分支上都成立——能自动命中的 provider 本就免费命中、无事可做；默认托管模型 gemini-2.5-flash-lite 受 2,048 门槛限制根本不可能命中、代码无解。剩余可选改动（Anthropic `cacheControl`、OpenRouter `prompt_cache_key`）上限同样只有 12–19%，低于合理门槛。重估触发条件：prompt 大幅变长越过门槛，或出现通往需显式标记的 provider 的原生通路。
+- 调研附带发现的两个**非成本**问题（2026-09-10 修复，不属于本图任何票）：`prompts.ts` 在 `sourceLang ≠ 'en'` 时硬编码 "adult English-language writing" → 改为语言中立的 "plain and natural adult writing"（`.scratch/explainer/prompt-framework.md` 同步）；讲解缓存键不含 `sourceLang` → `explainerCacheKey` 与 `ExplainerDb` 均改为 `(book_hash, text_hash, source_lang, native_lang)`。该 schema 未发布，故直接把原迁移 `2026090301_explainer` 的唯一键改成四列、不新增迁移（已有 v1 本地库需手动删除）。同批次的输出上限调整（thinking-off 4,096 → 8,192）记在 `../explainer-output-budget/`。
 
 ### 状态
 
@@ -49,7 +50,4 @@
 - **多轮追问 / 对话式讲解**作为产品能力（"这句为什么这么写"）。本图只回答成本问题；该能力另开一张地图。
 - 其它 AI 调用（chat / Reedy / 翻译）的缓存优化——它们共用 provider 设置，但各开一张地图。
 - **prompt 结构重排**（把 L/M 移出 system prompt）：票 01 以实测数据否决——可换取的复用面只有 19 tokens / 1.6% 前缀，在质量硬门槛下不划算。若将来 prompt 大幅变长（如加入词频校验的大词表），此判断需重估。
-- **输出侧降本与截断风险**：**不随本图关闭，已迁出**为独立地图 `../explainer-output-budget/`。它承载的是实测暴露的**质量事故风险**（输出达 thinking-off 上限 4,096 的 81%，截断会掉进 salvage 兜底），不是缓存或本图的成本问题。
-- 调研中附带发现的两个**非成本**问题，超出本图终点，另行处理：
-  - `src/services/explainer/prompts.ts:54` 在 `sourceLang ≠ 'en'` 时仍硬编码 "adult **English**-language writing"。
-  - 讲解缓存键 `(book_hash, text_hash, native_lang)` **不含 `sourceLang`**（`ExplainerDb.ts:123,138`）——切换源语言会静默复用旧条目。
+- **输出侧降本与截断风险**：**不随本图关闭，已迁出**为独立地图 `../explainer-output-budget/`。它承载的是实测暴露的**质量事故风险**（输出曾达 thinking-off 旧上限 4,096 的 81%，截断会掉进 salvage 兜底；上限已于 2026-09-10 抬到 8,192，见该图），不是缓存或本图的成本问题。

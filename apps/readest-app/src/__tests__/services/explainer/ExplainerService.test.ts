@@ -26,22 +26,26 @@ class FakeStore implements ExplainerStore {
   getByKeyCalls = 0;
   upserts: ExplanationEntry[] = [];
 
-  private key(bookHash: string, textHash: string, nativeLang: string): string {
-    return explainerCacheKey(bookHash, textHash, nativeLang);
+  private key(bookHash: string, textHash: string, sourceLang: string, nativeLang: string): string {
+    return explainerCacheKey(bookHash, textHash, sourceLang, nativeLang);
   }
 
   async getByKey(
     bookHash: string,
     textHash: string,
+    sourceLang: string,
     nativeLang: string,
   ): Promise<ExplanationEntry | null> {
     this.getByKeyCalls += 1;
-    return this.entries.get(this.key(bookHash, textHash, nativeLang)) ?? null;
+    return this.entries.get(this.key(bookHash, textHash, sourceLang, nativeLang)) ?? null;
   }
 
   async upsert(entry: ExplanationEntry): Promise<void> {
     this.upserts.push(entry);
-    this.entries.set(this.key(entry.bookHash, entry.textHash, entry.nativeLang), entry);
+    this.entries.set(
+      this.key(entry.bookHash, entry.textHash, entry.sourceLang, entry.nativeLang),
+      entry,
+    );
   }
 
   async delete(id: string): Promise<void> {
@@ -170,7 +174,7 @@ describe('ExplainerService.getOrGenerate', () => {
       createdAt: 10,
       updatedAt: 10,
     };
-    store.entries.set(`book-a:${hash}:zh-CN`, cached);
+    store.entries.set(explainerCacheKey('book-a', hash, 'en', 'zh-CN'), cached);
 
     const entry = await service.getOrGenerate(request());
 
@@ -279,6 +283,19 @@ describe('ExplainerService.getOrGenerate', () => {
 
     const entry = await service.getOrGenerate(request());
     expect(entry.truncated).toBeUndefined();
+  });
+
+  test('treats a changed source language as a cache miss', async () => {
+    const ai = new FakeAi(() => jsonResult(validPayload()));
+    const store = new FakeStore();
+    const service = makeService(ai, store);
+
+    await service.getOrGenerate(request({ sourceLang: 'en' }));
+    await service.getOrGenerate(request({ sourceLang: 'fr' }));
+
+    expect(ai.calls).toHaveLength(2);
+    expect(ai.calls[1]!.sourceLang).toBe('fr');
+    expect(store.entries.size).toBe(2);
   });
 });
 
